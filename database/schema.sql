@@ -16,7 +16,15 @@ CREATE TABLE parcels (
 
     geometry geometry(Polygon, 4326) NOT NULL,
 
-    source_type VARCHAR(32) NOT NULL,
+    source_type VARCHAR(32) NOT NULL
+    CHECK (
+        source_type IN (
+            'authoritative',
+            'real',
+            'derived',
+            'synthetic'
+        )
+    ),
     source_name TEXT,
     derivation_method TEXT,
 
@@ -51,7 +59,15 @@ CREATE TABLE buildings (
     height_m DOUBLE PRECISION,
     floor_count INTEGER,
 
-    source_type VARCHAR(32) NOT NULL,
+    source_type VARCHAR(32) NOT NULL
+    CHECK (
+        source_type IN (
+            'authoritative',
+            'real',
+            'derived',
+            'synthetic'
+        )
+    ),
     source_name TEXT,
     derivation_method TEXT,
 
@@ -92,7 +108,15 @@ CREATE TABLE floors (
     z_min_m DOUBLE PRECISION NOT NULL,
     z_max_m DOUBLE PRECISION NOT NULL,
 
-    source_type VARCHAR(32) NOT NULL,
+    source_type VARCHAR(32) NOT NULL
+    CHECK (
+        source_type IN (
+            'authoritative',
+            'real',
+            'derived',
+            'synthetic'
+        )
+    ),
     derivation_method TEXT,
 
     verification_status VARCHAR(32) NOT NULL DEFAULT 'unverified',
@@ -134,7 +158,15 @@ CREATE TABLE units (
 
     entrance geometry(Point, 4326),
 
-    source_type VARCHAR(32) NOT NULL,
+    source_type VARCHAR(32) NOT NULL
+    CHECK (
+        source_type IN (
+            'authoritative',
+            'real',
+            'derived',
+            'synthetic'
+        )
+    ),
     derivation_method TEXT,
 
     verification_status VARCHAR(32) NOT NULL DEFAULT 'unverified',
