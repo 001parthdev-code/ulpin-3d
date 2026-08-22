@@ -2470,3 +2470,923 @@ INTERACTIVE NEIGHBORHOOD MAP
 ```
 
 Once that succeeds, the system will have its first visible end-to-end geospatial interface.
+
+# 63. Frontend Phase Started
+
+After completing the spatial database and backend API foundation, development moved into the first visualization phase.
+
+The objective of this phase was deliberately narrow:
+
+```text
+PostGIS
+   ↓
+FastAPI
+   ↓
+GeoJSON
+   ↓
+React
+   ↓
+MapLibre
+   ↓
+Render P001
+```
+
+The purpose was not to build the final interface.
+
+The purpose was to prove that spatial geometry stored in PostGIS could travel through the complete application stack and become an interactive feature in the browser.
+
+This milestone has been successfully completed.
+
+---
+
+# 64. Frontend Technology
+
+The frontend was initialized using:
+
+```text
+React
+TypeScript
+Vite
+MapLibre GL JS
+```
+
+The current frontend structure contains approximately:
+
+```text
+frontend/
+├── src/
+│   ├── App.tsx
+│   ├── App.css
+│   ├── api.ts
+│   ├── index.css
+│   └── main.tsx
+│
+├── package.json
+├── package-lock.json
+├── vite.config.ts
+└── ...
+```
+
+CesiumJS has intentionally not been introduced yet.
+
+The development sequence remains:
+
+```text
+2D spatial interaction
+        ↓
+Property hierarchy
+        ↓
+3D vertical interaction
+```
+
+---
+
+# 65. Frontend API Layer
+
+A small API client was introduced in:
+
+```text
+frontend/src/api.ts
+```
+
+The frontend currently communicates with:
+
+```text
+http://127.0.0.1:8000
+```
+
+The first API operation retrieves parcels from:
+
+```text
+GET /parcels
+```
+
+The frontend models parcel geometry using GeoJSON polygon types.
+
+Conceptually:
+
+```text
+PostGIS Polygon
+      ↓
+ST_AsGeoJSON
+      ↓
+FastAPI
+      ↓
+HTTP response
+      ↓
+TypeScript Parcel
+      ↓
+MapLibre GeoJSON source
+```
+
+This ensures the map is rendering geometry from the spatial database rather than from hardcoded frontend coordinates.
+
+---
+
+# 66. MapLibre Integration
+
+MapLibre GL JS was integrated into the React application.
+
+The map currently initializes around the synthetic development parcel coordinates.
+
+The initial map intentionally uses a simple dark background rather than a real basemap.
+
+This was a deliberate engineering decision.
+
+The first question was:
+
+> Can our own spatial data render correctly?
+
+rather than:
+
+> Can we display somebody else's basemap?
+
+The answer is now yes.
+
+---
+
+# 67. MapLibre/Vite Compatibility Issue
+
+During integration, Vite produced an optimization error involving:
+
+```text
+maplibre-gl-worker.mjs
+```
+
+The problem originated from Vite's dependency optimizer attempting to pre-bundle MapLibre's worker-related code.
+
+The Vite configuration was updated to exclude MapLibre from dependency optimization:
+
+```text
+optimizeDeps
+    ↓
+exclude maplibre-gl
+```
+
+The Vite optimization cache was then cleared and the development server restarted.
+
+This resolved the worker/dependency optimization issue.
+
+---
+
+# 68. TypeScript Integration Issues
+
+Several TypeScript issues were encountered and corrected during MapLibre integration.
+
+## MapLibre Import
+
+The installed MapLibre module configuration did not expose the expected default export.
+
+The frontend therefore uses a namespace-style MapLibre import rather than assuming a default export.
+
+## Type-Only Imports
+
+Map and GeoJSON interfaces are treated as TypeScript types rather than runtime values.
+
+## GeoJSON Types
+
+GeoJSON TypeScript definitions were introduced so that parcel geometry could be represented explicitly as:
+
+```text
+FeatureCollection<Polygon>
+```
+
+rather than relying on an undefined global GeoJSON namespace.
+
+## Null Safety
+
+TypeScript correctly identified that a React map reference could theoretically be null inside nested callbacks.
+
+The map initialization/use logic was restructured around a validated local map instance rather than suppressing the compiler warning.
+
+This preserved strict null safety.
+
+---
+
+# 69. Styling Failure and Resolution
+
+After the API and React application began working, the browser initially displayed mostly unstyled HTML.
+
+The screen contained the correct information:
+
+```text
+3D ULPIN
+
+Vertical Property Mapping Prototype
+
+Spatial API Connected
+
+Property Explorer
+
+Loaded parcels: 1
+```
+
+but the intended application layout and map were not visible.
+
+This revealed an important debugging fact:
+
+```text
+Data/API pipeline     ✓
+React rendering       ✓
+Application CSS       ✗
+```
+
+The issue was corrected by restoring the required application layout styles.
+
+The application now establishes explicit dimensions for:
+
+```text
+html
+body
+#root
+.app
+.workspace
+.map
+```
+
+This is particularly important for MapLibre because the map container must have an actual width and height before the renderer can display the map.
+
+---
+
+# 70. Current Application Layout
+
+The application now has a stable two-part workspace:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ 3D ULPIN                         Spatial API ● Connected    │
+│ Vertical Property Mapping Prototype                         │
+├──────────────────────────────────────────┬──────────────────┤
+│                                          │                  │
+│                                          │ Property         │
+│              MAPLIBRE MAP                │ Explorer         │
+│                                          │                  │
+│                   P001                   │ P001             │
+│                                          │ Metadata         │
+│                                          │                  │
+└──────────────────────────────────────────┴──────────────────┘
+```
+
+The map occupies the primary workspace.
+
+The Property Explorer occupies the right-hand panel.
+
+---
+
+# 71. First Rendered Spatial Entity
+
+The synthetic parcel:
+
+```text
+P001
+```
+
+is now successfully rendered by MapLibre.
+
+Its geometry originates from:
+
+```text
+PostGIS
+```
+
+rather than from a frontend constant.
+
+The complete path is:
+
+```text
+parcels.geometry
+      ↓
+PostGIS
+      ↓
+ST_AsGeoJSON
+      ↓
+FastAPI /parcels
+      ↓
+fetch()
+      ↓
+React state
+      ↓
+GeoJSON FeatureCollection
+      ↓
+MapLibre source
+      ↓
+MapLibre fill layer
+      ↓
+P001 rendered in browser
+```
+
+This is the project's first complete visual end-to-end spatial pipeline.
+
+---
+
+# 72. Parcel Interaction
+
+P001 is interactive.
+
+The map registers pointer interaction against the parcel layer.
+
+When the user selects the parcel:
+
+```text
+Map click
+    ↓
+MapLibre feature
+    ↓
+parcel_id
+    ↓
+React Parcel object
+    ↓
+selectedParcel
+    ↓
+Property Explorer
+```
+
+The Property Explorer then displays the selected parcel.
+
+This proves that rendered geometry retains a connection to its semantic identity.
+
+P001 is not simply a blue rectangle.
+
+It remains:
+
+```text
+PARCEL
+  │
+  ├── ID
+  ├── Geometry
+  ├── Metadata
+  ├── Provenance
+  └── Verification state
+```
+
+---
+
+# 73. Property Explorer
+
+The Property Explorer currently displays parcel-level information including:
+
+```text
+Parcel ID
+Name
+Official ULPIN
+Source
+Verification status
+```
+
+For the current synthetic parcel, the interface displays approximately:
+
+```text
+PARCEL
+
+P001
+
+Name
+Prototype Parcel 001
+
+Official ULPIN
+Not available
+
+Source
+synthetic
+
+Verification
+unverified
+```
+
+This correctly preserves the distinction between prototype identity and official ULPIN information.
+
+---
+
+# 74. Synthetic Data Disclosure
+
+The interface explicitly displays:
+
+```text
+Synthetic demonstration data
+```
+
+for P001.
+
+This is an important product requirement rather than merely a visual warning.
+
+The prototype must distinguish:
+
+```text
+authoritative
+real
+derived
+synthetic
+```
+
+information throughout the system.
+
+The frontend has now demonstrated that provenance stored in the database can propagate all the way to the user interface.
+
+The flow is:
+
+```text
+Database provenance
+        ↓
+FastAPI
+        ↓
+JSON
+        ↓
+React
+        ↓
+Visible provenance disclosure
+```
+
+---
+
+# 75. Official ULPIN Handling
+
+Because the current development parcel does not contain an authoritative government-issued ULPIN, the interface correctly displays:
+
+```text
+Official ULPIN
+Not available
+```
+
+rather than fabricating one.
+
+This confirms one of the project's core integrity rules:
+
+> Prototype identifiers must never be presented as government-issued ULPINs.
+
+P001 therefore remains an internal prototype parcel identifier.
+
+---
+
+# 76. Spatial API Status
+
+The interface includes a visible API connectivity indicator:
+
+```text
+Spatial API ● Connected
+```
+
+During development, the application also correctly entered an error state when FastAPI was unavailable.
+
+This exposed and verified the runtime dependency chain:
+
+```text
+React/Vite :5173
+      │
+      ▼
+FastAPI :8000
+      │
+      ▼
+PostGIS :5432
+```
+
+All three layers must be operational for the complete application to function.
+
+---
+
+# 77. Local Runtime Procedure
+
+The development environment currently starts in the following order.
+
+## Step 1 — PostGIS
+
+From the repository root:
+
+```powershell
+docker compose up -d
+```
+
+Verify:
+
+```powershell
+docker compose ps
+```
+
+The expected database container is:
+
+```text
+ulpin-postgis
+```
+
+with a healthy status.
+
+---
+
+## Step 2 — FastAPI
+
+With the Python virtual environment activated:
+
+```powershell
+uvicorn backend.app.main:app --reload
+```
+
+The API runs at:
+
+```text
+http://127.0.0.1:8000
+```
+
+Useful development endpoints include:
+
+```text
+http://127.0.0.1:8000/health
+
+http://127.0.0.1:8000/docs
+
+http://127.0.0.1:8000/parcels
+```
+
+---
+
+## Step 3 — React/Vite
+
+From:
+
+```text
+frontend/
+```
+
+run:
+
+```powershell
+npm run dev
+```
+
+The application runs at:
+
+```text
+http://localhost:5173
+```
+
+The resulting runtime architecture is:
+
+```text
+Browser
+   │
+   ▼
+React / Vite
+:5173
+   │
+   ▼
+FastAPI
+:8000
+   │
+   ▼
+PostGIS
+:5432
+```
+
+---
+
+# 78. Current Visual Milestone
+
+The current application successfully demonstrates:
+
+```text
+Open browser
+     ↓
+React application loads
+     ↓
+FastAPI contacted
+     ↓
+P001 retrieved
+     ↓
+GeoJSON generated
+     ↓
+MapLibre renders P001
+     ↓
+User selects P001
+     ↓
+Property Explorer updates
+     ↓
+Parcel metadata displayed
+```
+
+This entire flow is operational.
+
+---
+
+# 79. Current Verified End-to-End Pipeline
+
+The project has now crossed its first complete frontend boundary:
+
+```text
+SYNTHETIC SPATIAL DATA
+          ↓
+       POSTGIS
+          ↓
+       FASTAPI
+          ↓
+       GEOJSON
+          ↓
+        HTTP
+          ↓
+        REACT
+          ↓
+       MAPLIBRE
+          ↓
+   INTERACTIVE P001
+          ↓
+  PROPERTY METADATA
+```
+
+This is a significant architectural checkpoint because every major layer except the 3D renderer has now participated in a single user interaction.
+
+---
+
+# 80. Current Project Status
+
+At the freeze point, the project status is:
+
+```text
+INFRASTRUCTURE
+
+Git / GitHub                         ✓
+Docker                               ✓
+PostgreSQL                           ✓
+PostGIS                              ✓
+GEOS                                 ✓
+PROJ                                 ✓
+
+
+DOMAIN MODEL
+
+Parcel                               ✓
+Building                             ✓
+Floor                                ✓
+Unit                                 ✓
+Vertical ranges                      ✓
+Provenance                           ✓
+
+
+SYNTHETIC DEVELOPMENT MODEL
+
+P001                                 ✓
+B001                                 ✓
+F001–F003                            ✓
+U101–U302                            ✓
+
+
+SPATIAL VALIDATION
+
+Geometry validity                    ✓
+Building → Parcel                    ✓
+Floor → Building                     ✓
+Unit → Floor                         ✓
+Vertical ranges                      ✓
+
+
+BACKEND
+
+FastAPI                              ✓
+PostGIS connection                   ✓
+GeoJSON output                       ✓
+Parcel endpoints                     ✓
+Property hierarchy endpoints         ✓
+Property tree                        ✓
+CORS                                 ✓
+API tests                            ✓
+
+
+FRONTEND
+
+React                                ✓
+TypeScript                           ✓
+Vite                                 ✓
+MapLibre                             ✓
+FastAPI communication                ✓
+Parcel GeoJSON rendering             ✓
+Parcel selection                     ✓
+Parcel metadata                      ✓
+Provenance disclosure                ✓
+
+
+3D
+
+CesiumJS                             NOT STARTED
+Floor rendering                      NOT STARTED
+Unit rendering                       NOT STARTED
+Vertical navigation                  NOT STARTED
+
+
+REAL NEIGHBORHOOD
+
+Road ingestion                       NOT STARTED
+Park ingestion                       NOT STARTED
+Real building ingestion              NOT STARTED
+Parcel dataset selection             NOT STARTED
+```
+
+---
+
+# 81. Current Git Checkpoint
+
+The current frontend milestone should be committed as:
+
+```text
+feat(frontend): render interactive parcel map
+```
+
+This commit represents:
+
+```text
+PostGIS
+   ↓
+FastAPI
+   ↓
+GeoJSON
+   ↓
+React
+   ↓
+MapLibre
+   ↓
+Interactive Parcel
+```
+
+The repository should be pushed/synchronized to GitHub before the next development session.
+
+---
+
+# 82. Deliberate Freeze Point
+
+Development is intentionally frozen at this point.
+
+No additional features should be introduced before the next session.
+
+The current system is in a known working state:
+
+```text
+Database        WORKING
+Backend         WORKING
+API tests       WORKING
+Frontend        WORKING
+MapLibre        WORKING
+P001 rendering  WORKING
+P001 selection  WORKING
+```
+
+This provides a clean recovery point if future changes introduce regressions.
+
+---
+
+# 83. Next Development Session
+
+The next implementation target is:
+
+```text
+P001
+└── B001
+```
+
+B001 will be retrieved from the existing FastAPI backend and rendered as an independently identifiable spatial feature inside P001.
+
+The target interaction becomes:
+
+```text
+Select P001
+    ↓
+Display Parcel
+    ↓
+Load B001
+    ↓
+Render Building
+    ↓
+Select B001
+    ↓
+Display Building Metadata
+    ↓
+Expose Floors
+```
+
+The Property Explorer will then evolve from a metadata panel into a hierarchy navigator.
+
+---
+
+# 84. Planned Next Milestones
+
+The immediate sequence from this freeze point is:
+
+```text
+CURRENT
+Interactive P001
+      ↓
+Render B001
+      ↓
+Parcel → Building navigation
+      ↓
+Building → Floor hierarchy
+      ↓
+Floor → Unit hierarchy
+      ↓
+2D hierarchy complete
+      ↓
+CesiumJS integration
+      ↓
+3D Building
+      ↓
+3D Floors
+      ↓
+3D Units
+      ↓
+Vertical navigation
+```
+
+After the vertical interaction is proven with the synthetic model, attention can shift toward the real neighborhood dataset.
+
+---
+
+# 85. Why We Freeze Here
+
+The system currently has a working vertical-property backend and a working spatial frontend.
+
+Continuing immediately into building rendering, neighborhood ingestion, or Cesium would increase the number of simultaneously changing components.
+
+Instead, this checkpoint preserves a stable baseline:
+
+```text
+Known-good database
+       +
+Known-good API
+       +
+Known-good frontend
+       +
+Known-good spatial rendering
+       =
+RECOVERABLE SYSTEM STATE
+```
+
+The next development session can therefore begin from a functioning product rather than from an unresolved debugging state.
+
+---
+
+# 86. End-of-Session Architecture
+
+The system at the end of this development session is:
+
+```text
+                         USER
+                          │
+                          ▼
+                  ┌───────────────┐
+                  │ React + Vite  │
+                  └───────┬───────┘
+                          │
+                          ▼
+                  ┌───────────────┐
+                  │   MapLibre    │
+                  │               │
+                  │     P001      │
+                  └───────┬───────┘
+                          │
+                     User Selection
+                          │
+                          ▼
+                  Property Explorer
+                          │
+                          │ HTTP
+                          ▼
+                  ┌───────────────┐
+                  │    FastAPI    │
+                  └───────┬───────┘
+                          │
+                        SQL
+                          │
+                          ▼
+                  ┌───────────────┐
+                  │    PostGIS    │
+                  │               │
+                  │ P001          │
+                  │ └── B001      │
+                  │     ├── F001  │
+                  │     │   ├ U101│
+                  │     │   └ U102│
+                  │     ├── F002  │
+                  │     └── F003  │
+                  └───────────────┘
+```
+
+The database already understands the vertical property hierarchy.
+
+The browser now understands the parcel.
+
+The next session connects those two concepts visually.
+
+---
+
+# 87. Session Resume Point
+
+When development resumes:
+
+1. Pull/sync the latest Git repository if necessary.
+2. Start Docker/PostGIS.
+3. Verify the database contains `1 parcel / 1 building / 3 floors / 6 units`.
+4. Run the backend test suite.
+5. Start FastAPI.
+6. Start Vite.
+7. Confirm P001 renders and remains selectable.
+8. Do not modify the existing parcel pipeline unless it is broken.
+9. Begin B001 rendering as the next isolated feature.
+10. Commit B001 separately from the current parcel milestone.
+
+Resume objective:
+
+> **Turn the working parcel viewer into a Parcel → Building property explorer without breaking the known-good P001 pipeline.**
