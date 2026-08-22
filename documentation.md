@@ -1,0 +1,1276 @@
+# 3D ULPIN & Vertical Property Mapping System — Development Walkthrough
+
+**Project:** 3D ULPIN Generation and Vertical Property Mapping System
+**Prototype Scope:** Neighborhood Scale
+**Development Start:** August 22, 2026
+**Target Demonstration:** September 1–2, 2026
+**Current Phase:** Foundation & Spatial Data Model
+
+---
+
+# 1. Project Objective
+
+The project aims to build a neighborhood-scale prototype of a spatial information system capable of representing both traditional 2D urban geography and vertically organized property information.
+
+The core property hierarchy is:
+
+```text
+PARCEL
+   ↓
+BUILDING
+   ↓
+FLOOR
+   ↓
+UNIT
+```
+
+The surrounding neighborhood will eventually contain:
+
+```text
+NEIGHBORHOOD
+│
+├── ROADS
+├── PARKS
+├── WATER / PUBLIC FEATURES
+│
+└── PARCELS
+      │
+      └── BUILDINGS
+            │
+            └── FLOORS
+                  │
+                  └── UNITS
+```
+
+The system is not intended to be merely a 3D visualization.
+
+Each spatial entity should retain:
+
+* identity
+* geometry
+* semantic meaning
+* relationships
+* provenance
+* verification status
+* vertical information where applicable
+
+The frontend will eventually visualize this information in 2D and 3D, while the backend and spatial database remain the source of truth.
+
+Our development principle is:
+
+> **Architecture for a city. Data for a neighborhood.**
+
+---
+
+# 2. Scope Decision
+
+We deliberately decided **not** to attempt an entire city during the prototype period.
+
+Instead, the system architecture will be designed so that city-scale techniques can be introduced later, while the actual demonstration uses a manageable neighborhood dataset.
+
+The prototype will eventually demonstrate:
+
+```text
+ROAD
+PARK
+PARCEL
+BUILDING
+FLOOR
+UNIT
+```
+
+The most important vertical relationship is:
+
+```text
+Parcel
+└── Building
+    ├── Floor 1
+    │   ├── Unit 101
+    │   └── Unit 102
+    ├── Floor 2
+    │   ├── Unit 201
+    │   └── Unit 202
+    └── Floor 3
+        ├── Unit 301
+        └── Unit 302
+```
+
+---
+
+# 3. ULPIN Position
+
+A major architectural rule established during research is that the prototype must distinguish between official government identifiers and identifiers generated for demonstration purposes.
+
+We therefore distinguish:
+
+```text
+Official ULPIN
+      │
+      ├── Government-issued parcel identity
+      │
+      ▼
+Prototype Parcel Identity
+      │
+      ├── Internal demonstration identity
+      │
+      ▼
+Prototype Vertical Property Identity
+      │
+      └── Building / Floor / Unit identity
+```
+
+The prototype will **not claim to generate official government ULPINs**.
+
+For this reason, the parcel database contains a nullable:
+
+```text
+official_ulpin
+```
+
+field.
+
+If authoritative ULPIN information is unavailable, this field remains `NULL`.
+
+Synthetic identifiers such as:
+
+```text
+P001
+B001
+F001
+U101
+```
+
+are explicitly prototype identifiers.
+
+---
+
+# 4. Synthetic Data Strategy
+
+Reliable public floor-level and unit-level cadastral information may not be available for the selected neighborhood.
+
+We therefore decided to use a hybrid data strategy.
+
+## Real Data
+
+Where available:
+
+* roads
+* parks
+* water features
+* public spaces
+* building footprints
+* neighborhood context
+
+## Derived Data
+
+Potentially:
+
+* building heights
+* parcel-building relationships
+* floor elevations
+* other computationally inferred attributes
+
+## Synthetic Data
+
+Where authoritative information is unavailable:
+
+* floor layouts
+* property units
+* vertical configuration
+* unit metadata
+* selected demonstration parcel information if required
+
+The important rule is:
+
+> **Synthetic data must always be explicitly identified as synthetic.**
+
+The prototype should never present demonstration geometry or identifiers as authoritative cadastral information.
+
+---
+
+# 5. Development Environment
+
+The project is being developed using VS Code.
+
+The current development environment consists of:
+
+```text
+VS Code
+   │
+   ├── Git / GitHub
+   │
+   ├── Python virtual environment
+   │
+   └── Docker
+         │
+         └── PostgreSQL + PostGIS
+```
+
+Future components will include:
+
+```text
+React + TypeScript
+        │
+        ├── MapLibre
+        └── CesiumJS
+
+FastAPI
+   │
+PostGIS
+```
+
+---
+
+# 6. Repository Structure
+
+The project repository was initialized with approximately the following structure:
+
+```text
+ulpin-3d/
+│
+├── backend/
+├── frontend/
+├── database/
+├── pipelines/
+│
+├── data/
+│   ├── raw/
+│   ├── intermediate/
+│   └── processed/
+│
+├── docs/
+├── tests/
+│
+├── docker-compose.yml
+├── .gitignore
+├── README.md
+└── documentation.md
+```
+
+The responsibilities of these directories are:
+
+## `backend/`
+
+Future FastAPI application and backend domain logic.
+
+## `frontend/`
+
+Future React, MapLibre, and Cesium application.
+
+## `database/`
+
+Database schema, development seed data, validation queries, and eventually migrations.
+
+## `pipelines/`
+
+Reproducible GIS ingestion and transformation processes.
+
+## `data/raw/`
+
+Original source datasets.
+
+Raw datasets should not be destructively modified.
+
+## `data/intermediate/`
+
+Normalized or partially transformed datasets.
+
+## `data/processed/`
+
+Application-ready spatial datasets.
+
+## `docs/`
+
+Architecture decisions, research notes, diagrams, dataset documentation, and other project documentation.
+
+## `tests/`
+
+Automated spatial, backend, and integration tests.
+
+---
+
+# 7. GitHub Repository
+
+The project was initialized as a Git repository and pushed to GitHub using VS Code's Source Control interface.
+
+The repository is currently being treated as a development repository.
+
+A `.gitignore` was added to prevent unnecessary or sensitive files from entering source control.
+
+Important exclusions include:
+
+```text
+.venv/
+node_modules/
+.env
+data/raw/*
+data/intermediate/*
+data/processed/*
+```
+
+This is particularly important because large GIS datasets should not be committed directly into the repository.
+
+The repository should contain the **code and reproducible pipeline**, rather than becoming storage for every source dataset.
+
+---
+
+# 8. Dockerized PostGIS
+
+Rather than installing PostgreSQL and PostGIS directly into Windows, the spatial database is running through Docker.
+
+The database container is:
+
+```text
+ulpin-postgis
+```
+
+using:
+
+```text
+PostgreSQL 17
+PostGIS 3.5
+```
+
+The container exposes PostgreSQL through:
+
+```text
+localhost:5432
+```
+
+The database is:
+
+```text
+ulpin
+```
+
+---
+
+# 9. Database Verification
+
+After starting the Docker container, its status was verified using:
+
+```powershell
+docker compose ps
+```
+
+The container reported:
+
+```text
+STATUS: healthy
+```
+
+We then connected directly to PostgreSQL using:
+
+```powershell
+docker exec -it ulpin-postgis psql -U ulpin -d ulpin
+```
+
+Inside PostgreSQL, PostGIS was verified using:
+
+```sql
+SELECT PostGIS_Version();
+```
+
+The environment returned:
+
+```text
+3.5 USE_GEOS=1 USE_PROJ=1 USE_STATS=1
+```
+
+This established that:
+
+```text
+Docker       ✓
+PostgreSQL   ✓
+PostGIS      ✓
+GEOS         ✓
+PROJ         ✓
+```
+
+The spatial database foundation is therefore operational.
+
+---
+
+# 10. Shell vs PostgreSQL
+
+An early development mistake also established an important workflow distinction.
+
+Commands such as:
+
+```powershell
+docker compose ps
+```
+
+must run from PowerShell.
+
+SQL commands such as:
+
+```sql
+SELECT PostGIS_Version();
+```
+
+must run inside PostgreSQL.
+
+The prompt provides a useful indication:
+
+```text
+PS D:\ulpin-3d>
+```
+
+means we are in PowerShell.
+
+While:
+
+```text
+ulpin=#
+```
+
+means we are inside PostgreSQL's `psql` shell.
+
+---
+
+# 11. First Spatial Database Schema
+
+The first actual system component being built is the vertical property domain model.
+
+The initial schema contains:
+
+```text
+PARCEL
+  │
+  │ 1:N
+  ▼
+BUILDING
+  │
+  │ 1:N
+  ▼
+FLOOR
+  │
+  │ 1:N
+  ▼
+UNIT
+```
+
+This is implemented through four PostgreSQL tables:
+
+```text
+parcels
+buildings
+floors
+units
+```
+
+The neighborhood-level entities such as roads and parks have intentionally not been added yet.
+
+The strategy is to first prove that the difficult vertical property hierarchy works correctly.
+
+---
+
+# 12. Parcel Model
+
+A parcel contains:
+
+```text
+Internal database ID
+Prototype parcel ID
+Optional official ULPIN
+Name
+2D geometry
+Source type
+Source name
+Derivation method
+Verification status
+Created timestamp
+Updated timestamp
+```
+
+The spatial geometry uses:
+
+```sql
+geometry(Polygon, 4326)
+```
+
+The parcel therefore remains a semantic cadastral/spatial entity rather than simply becoming a rendered polygon.
+
+---
+
+# 13. Building Model
+
+Every building belongs to a parcel through a foreign-key relationship.
+
+Conceptually:
+
+```text
+PARCEL
+   │
+   └── BUILDING
+```
+
+A building contains:
+
+```text
+building_id
+parcel_id
+name
+footprint
+height_m
+floor_count
+source information
+verification status
+timestamps
+```
+
+The building footprint is stored as:
+
+```sql
+geometry(Polygon, 4326)
+```
+
+Its height remains a separate metric property.
+
+This is deliberate.
+
+We are not storing the building merely as an opaque 3D mesh.
+
+---
+
+# 14. Floor Model
+
+Every floor belongs to a building.
+
+```text
+BUILDING
+   │
+   ├── FLOOR 1
+   ├── FLOOR 2
+   └── FLOOR 3
+```
+
+A floor contains:
+
+```text
+floor_id
+building_id
+floor_number
+footprint
+z_min_m
+z_max_m
+source information
+verification status
+```
+
+The vertical extent is represented using:
+
+```text
+z_min_m
+z_max_m
+```
+
+For example:
+
+```text
+Floor 1 → 0–3 m
+Floor 2 → 3–6 m
+Floor 3 → 6–9 m
+```
+
+At this stage, these are relative building elevations rather than absolute elevations above sea level.
+
+---
+
+# 15. Unit Model
+
+Every property unit belongs to a floor.
+
+```text
+FLOOR
+ │
+ ├── UNIT 101
+ └── UNIT 102
+```
+
+A unit contains:
+
+```text
+unit_id
+floor_id
+unit_number
+footprint
+z_min_m
+z_max_m
+entrance
+source information
+verification status
+```
+
+The unit entrance is represented as:
+
+```sql
+geometry(Point, 4326)
+```
+
+This gives us a foundation for future entrance-based property identity experiments.
+
+---
+
+# 16. 3D Representation Strategy
+
+An important architectural decision was made not to store every property entity as a 3D mesh.
+
+Instead, the database preserves meaningful spatial parameters.
+
+For example:
+
+```text
+UNIT
+│
+├── 2D footprint
+├── z_min
+└── z_max
+```
+
+The conceptual unit volume is therefore:
+
+```text
+2D footprint
+      ×
+vertical interval
+      ↓
+3D property volume
+```
+
+Mathematically:
+
+```text
+V = footprint × [z_min, z_max]
+```
+
+The visualization layer can derive a rendered 3D representation from this information.
+
+This preserves the semantic spatial model independently from the renderer.
+
+---
+
+# 17. Spatial Indexing
+
+GiST spatial indexes were created for the major geometries.
+
+Examples include:
+
+```text
+parcels_geometry_gix
+buildings_footprint_gix
+floors_footprint_gix
+units_footprint_gix
+units_entrance_gix
+```
+
+These indexes prepare the system for PostGIS operations such as:
+
+```text
+ST_Intersects
+ST_Contains
+ST_CoveredBy
+ST_Within
+```
+
+and future spatial queries at larger scales.
+
+Traditional indexes were also created for relationships such as:
+
+```text
+building → parcel
+floor → building
+unit → floor
+```
+
+---
+
+# 18. Database Integrity Constraints
+
+Several database-level constraints were introduced.
+
+Building heights must be positive when present:
+
+```sql
+CHECK (height_m IS NULL OR height_m > 0)
+```
+
+Floor counts must also be positive:
+
+```sql
+CHECK (floor_count IS NULL OR floor_count > 0)
+```
+
+Vertical ranges must be valid:
+
+```sql
+CHECK (z_max_m > z_min_m)
+```
+
+Floors must be unique within their building:
+
+```text
+UNIQUE (building_id, floor_number)
+```
+
+Units must be unique within their floor:
+
+```text
+UNIQUE (floor_id, unit_number)
+```
+
+These rules prevent several classes of invalid property data from entering the system.
+
+---
+
+# 19. Provenance Model
+
+A major improvement was made to `source_type`.
+
+Originally the database allowed:
+
+```sql
+source_type VARCHAR(32) NOT NULL
+```
+
+This meant arbitrary values could theoretically enter the database.
+
+We changed this to a controlled vocabulary:
+
+```text
+authoritative
+real
+derived
+synthetic
+```
+
+The intended meanings are:
+
+### `authoritative`
+
+Information obtained from an official/authoritative cadastral or government source.
+
+### `real`
+
+Real-world information from a non-authoritative source such as an open geospatial dataset.
+
+### `derived`
+
+Information computationally inferred or generated from other data.
+
+### `synthetic`
+
+Information deliberately created for prototype/demo purposes.
+
+The database now rejects source classifications outside this vocabulary.
+
+---
+
+# 20. Provenance Constraint Test
+
+The provenance constraint was explicitly tested.
+
+A parcel was deliberately inserted using:
+
+```text
+source_type = banana
+```
+
+PostgreSQL returned:
+
+```text
+ERROR:
+new row for relation "parcels"
+violates check constraint "parcels_source_type_check"
+```
+
+This was the expected result.
+
+The test demonstrated that provenance rules are being enforced by PostgreSQL rather than relying solely on future application code.
+
+Therefore:
+
+```text
+Invalid provenance
+        ↓
+PostgreSQL constraint
+        ↓
+REJECTED ✓
+```
+
+This became our first verified database integrity rule.
+
+---
+
+# 21. Schema Recreation During Development
+
+While modifying the schema, we encountered errors such as:
+
+```text
+relation "parcels" already exists
+```
+
+This occurred because `schema.sql` had already been executed once.
+
+At this early stage, there was no valuable application data, so the development tables were dropped and recreated.
+
+The dependency order used was:
+
+```text
+units
+  ↓
+floors
+  ↓
+buildings
+  ↓
+parcels
+```
+
+This reflects the foreign-key hierarchy.
+
+The tables were then recreated from the updated schema.
+
+This also exposed an architectural fact:
+
+> `schema.sql` is currently a bootstrap schema, not a full migration system.
+
+That is acceptable during the initial prototype stage.
+
+Once valuable data begins accumulating, schema evolution should move toward migrations rather than destructive recreation.
+
+---
+
+# 22. First Synthetic Vertical Property
+
+The next system milestone has been designed around a controlled synthetic property.
+
+The target structure is:
+
+```text
+Parcel P001
+└── Building B001
+    ├── Floor 1
+    │   ├── Unit 101
+    │   └── Unit 102
+    │
+    ├── Floor 2
+    │   ├── Unit 201
+    │   └── Unit 202
+    │
+    └── Floor 3
+        ├── Unit 301
+        └── Unit 302
+```
+
+The building is designed as:
+
+```text
+Total height: 9 m
+
+Floor 1: 0–3 m
+Floor 2: 3–6 m
+Floor 3: 6–9 m
+```
+
+Each floor contains two synthetic property units.
+
+This gives us:
+
+```text
+1 parcel
+1 building
+3 floors
+6 units
+```
+
+---
+
+# 23. Synthetic Geometry Design
+
+The parcel is represented by a geographic polygon.
+
+Inside that polygon sits a smaller building footprint.
+
+Conceptually:
+
+```text
+┌──────────────────────────────┐
+│                              │
+│           PARCEL             │
+│                              │
+│       ┌──────────────┐       │
+│       │              │       │
+│       │   BUILDING   │       │
+│       │              │       │
+│       └──────────────┘       │
+│                              │
+└──────────────────────────────┘
+```
+
+Each floor currently uses the building footprint.
+
+The floor is then divided into two synthetic units:
+
+```text
+BUILDING / FLOOR
+
+┌─────────────────────────────┐
+│              │              │
+│    UNIT A    │    UNIT B    │
+│              │              │
+└─────────────────────────────┘
+```
+
+The same horizontal unit layout is stacked vertically across the three floors.
+
+---
+
+# 24. Why the Synthetic Seed Is Deterministic
+
+The seed dataset is deliberately deterministic rather than randomly generated.
+
+This means:
+
+```text
+P001
+```
+
+always represents the same parcel geometry.
+
+Likewise:
+
+```text
+B001
+F001
+F002
+F003
+U101
+U102
+U201
+U202
+U301
+U302
+```
+
+always represent the same entities.
+
+This makes:
+
+* debugging easier
+* testing reproducible
+* screenshots consistent
+* demonstrations reliable
+* spatial validation deterministic
+
+Random synthetic generation may be introduced later if we need larger demonstration datasets.
+
+---
+
+# 25. Planned Spatial Validation
+
+Creating foreign-key relationships is not sufficient.
+
+PostGIS must also prove that the geometry itself makes sense.
+
+The first validation will verify:
+
+```text
+Building footprint
+       ↓
+is spatially covered by
+       ↓
+Parcel geometry
+```
+
+using:
+
+```sql
+ST_CoveredBy(...)
+```
+
+We deliberately prefer appropriate spatial predicates rather than assuming relational foreign keys imply spatial correctness.
+
+A database record could theoretically claim:
+
+```text
+Building B001 belongs to Parcel P001
+```
+
+while its geometry is physically located outside the parcel.
+
+Therefore both must eventually agree:
+
+```text
+RELATIONAL RELATIONSHIP
+Building.parcel_id = Parcel.id
+
+AND
+
+SPATIAL RELATIONSHIP
+Building geometry inside Parcel geometry
+```
+
+---
+
+# 26. Geometry Validation
+
+All important geometries will also be checked using:
+
+```sql
+ST_IsValid(...)
+```
+
+The expected result for every prototype geometry is:
+
+```text
+true
+```
+
+Validation will cover:
+
+```text
+Parcel geometry
+Building footprint
+Floor footprints
+Unit footprints
+```
+
+Invalid geometry should not silently progress into the API or renderer.
+
+---
+
+# 27. Current System State
+
+At the current checkpoint, the project has:
+
+```text
+GitHub repository                     ✓
+Project directory structure           ✓
+Docker environment                    ✓
+PostgreSQL 17                         ✓
+PostGIS 3.5                           ✓
+GEOS                                  ✓
+PROJ                                  ✓
+Parcel database model                 ✓
+Building database model               ✓
+Floor database model                  ✓
+Unit database model                   ✓
+Foreign-key hierarchy                 ✓
+Spatial indexes                       ✓
+Vertical constraints                  ✓
+Provenance classification             ✓
+Provenance constraint test            ✓
+Synthetic property design             ✓
+```
+
+The synthetic seed and its spatial validation are the next active implementation milestone.
+
+---
+
+# 28. Current Architecture
+
+The implemented portion currently looks like:
+
+```text
+                     POSTGRESQL
+                       POSTGIS
+                          │
+                          ▼
+                    SPATIAL MODEL
+                          │
+            ┌─────────────┴─────────────┐
+            │                           │
+        IDENTITY                    GEOMETRY
+            │                           │
+            └─────────────┬─────────────┘
+                          │
+                     PROVENANCE
+                          │
+                          ▼
+                       PARCEL
+                          │
+                          ▼
+                      BUILDING
+                          │
+                          ▼
+                        FLOOR
+                          │
+                          ▼
+                         UNIT
+```
+
+The future architecture will expand this into:
+
+```text
+                         USER
+                           │
+                           ▼
+                    WEB APPLICATION
+                           │
+             ┌─────────────┴─────────────┐
+             ▼                           ▼
+        MAPLIBRE 2D                 CESIUMJS 3D
+             │                           │
+             └─────────────┬─────────────┘
+                           ▼
+                    REACT / TYPESCRIPT
+                           │
+                           ▼
+                         API
+                           │
+                           ▼
+                        FASTAPI
+                           │
+                           ▼
+                       POSTGIS
+                           │
+                           ▼
+                  SPATIAL DOMAIN MODEL
+```
+
+---
+
+# 29. What We Have Intentionally Not Built Yet
+
+We have deliberately avoided:
+
+* React UI
+* Cesium visualization
+* MapLibre visualization
+* FastAPI endpoints
+* authentication
+* microservices
+* AI reconstruction
+* city-scale tiling
+* traffic simulation
+* disaster simulation
+* utility networks
+* production deployment
+
+This is intentional.
+
+The current development strategy is:
+
+```text
+DATA MODEL
+    ↓
+SPATIAL VALIDATION
+    ↓
+API
+    ↓
+2D VISUALIZATION
+    ↓
+3D VISUALIZATION
+    ↓
+INTEGRATION
+```
+
+rather than starting with an attractive frontend backed by an undefined spatial model.
+
+---
+
+# 30. Immediate Next Milestone
+
+The next milestone is to complete and validate:
+
+```text
+P001
+ │
+ └── B001
+      │
+      ├── F001
+      │    ├── U101
+      │    └── U102
+      │
+      ├── F002
+      │    ├── U201
+      │    └── U202
+      │
+      └── F003
+           ├── U301
+           └── U302
+```
+
+We need to prove:
+
+1. All records insert successfully.
+2. All geometries are valid.
+3. B001 is spatially inside P001.
+4. Every floor belongs to B001.
+5. Every unit belongs to its intended floor.
+6. Vertical ranges are valid.
+7. The entire hierarchy can be retrieved through one SQL query.
+8. Synthetic provenance remains explicit.
+
+Once these conditions pass, we will have the first complete vertical property object in the system.
+
+---
+
+# 31. Engineering Principle Going Forward
+
+Every major component should follow:
+
+```text
+WHY?
+  ↓
+PROBLEM?
+  ↓
+INPUT?
+  ↓
+OUTPUT?
+  ↓
+DATA OWNERSHIP?
+  ↓
+INTERFACE?
+  ↓
+FAILURE MODES?
+  ↓
+TEST?
+  ↓
+IMPLEMENTATION
+```
+
+The objective is not to maximize the amount of code written.
+
+The objective is to create a spatial system whose behavior we can explain, reproduce, validate, and defend technically.
+
+---
+
+# 32. Current Checkpoint
+
+We have moved from:
+
+```text
+PROJECT IDEA
+```
+
+to:
+
+```text
+PROJECT IDEA
+      ↓
+ARCHITECTURE
+      ↓
+DEVELOPMENT ENVIRONMENT
+      ↓
+SPATIAL DATABASE
+      ↓
+DOMAIN MODEL
+      ↓
+DATABASE INTEGRITY
+```
+
+The next transition is:
+
+```text
+DOMAIN MODEL
+      ↓
+REAL SPATIAL OBJECT
+      ↓
+SPATIAL VALIDATION
+      ↓
+API
+```
+
+That will mark the point where the prototype becomes a queryable vertical-property system rather than only an architectural design.
