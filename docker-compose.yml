@@ -1,0 +1,26 @@
+services:
+  db:
+    image: postgis/postgis:17-3.5
+    container_name: ulpin-postgis
+
+    environment:
+      POSTGRES_DB: ulpin
+      POSTGRES_USER: ulpin
+      POSTGRES_PASSWORD: ulpin_dev_password
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - ulpin_postgres_data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ulpin -d ulpin"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    restart: unless-stopped
+
+volumes:
+  ulpin_postgres_data:
