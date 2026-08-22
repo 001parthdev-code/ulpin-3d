@@ -1,7 +1,7 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .routers import buildings, floors, parcels, units
-from fastapi.middleware.cors import CORSMiddleware
 
 
 app = FastAPI(
@@ -9,6 +9,8 @@ app = FastAPI(
     description="Spatial API for the 3D ULPIN vertical property mapping prototype.",
     version="0.1.0",
 )
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
