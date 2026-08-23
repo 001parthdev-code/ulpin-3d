@@ -6,20 +6,30 @@ import type { FeatureCollection, Polygon } from "geojson";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./App.css";
 
-import { getParcels, type Parcel } from "./api";
+import {
+  getParcels,
+  getParcelBuildings,
+  type Parcel,
+  type Building,
+} from "./api";
 
 function App() {
   const mapContainer = useRef<HTMLDivElement | null>(null);
   const map = useRef<Map | null>(null);
 
   const [parcels, setParcels] = useState<Parcel[]>([]);
+  const [buildings, setBuildings] = useState<Building[]>([]);
+
   const [selectedParcel, setSelectedParcel] =
     useState<Parcel | null>(null);
+
+  const [selectedBuilding, setSelectedBuilding] =
+    useState<Building | null>(null);
 
   const [error, setError] = useState<string | null>(null);
 
   // ---------------------------------------------------------
-  // Load parcels from FastAPI
+  // Load parcels
   // ---------------------------------------------------------
 
   useEffect(() => {
@@ -54,12 +64,10 @@ function App() {
       style: {
         version: 8,
         sources: {},
-
         layers: [
           {
             id: "background",
             type: "background",
-
             paint: {
               "background-color": "#111827",
             },
@@ -86,7 +94,7 @@ function App() {
   }, []);
 
   // ---------------------------------------------------------
-  // Add parcel GeoJSON to MapLibre
+  // Render parcels
   // ---------------------------------------------------------
 
   useEffect(() => {
@@ -120,7 +128,6 @@ function App() {
         data: geojson,
       });
 
-      // Parcel fill
       mapInstance.addLayer({
         id: "parcel-fill",
         type: "fill",
@@ -128,27 +135,25 @@ function App() {
 
         paint: {
           "fill-color": "#2563eb",
-          "fill-opacity": 0.45,
+          "fill-opacity": 0.35,
         },
       });
 
-      // Parcel boundary
       mapInstance.addLayer({
         id: "parcel-outline",
         type: "line",
         source: "parcels",
 
         paint: {
-          "line-color": "#ffffff",
+          "line-color": "#60a5fa",
           "line-width": 2,
         },
       });
 
-      // Parcel selection
       mapInstance.on(
         "click",
         "parcel-fill",
-        (event) => {
+        async (event) => {
           const feature = event.features?.[0];
 
           if (!feature) {
@@ -168,10 +173,25 @@ function App() {
           }
 
           setSelectedParcel(parcel);
+          setSelectedBuilding(null);
+
+          try {
+            const buildingData =
+              await getParcelBuildings(
+                parcel.parcel_id
+              );
+
+            setBuildings(buildingData);
+          } catch (err) {
+            setError(
+              err instanceof Error
+                ? err.message
+                : "Failed to load buildings"
+            );
+          }
         }
       );
 
-      // Cursor feedback
       mapInstance.on(
         "mouseenter",
         "parcel-fill",
@@ -198,7 +218,114 @@ function App() {
   }, [parcels]);
 
   // ---------------------------------------------------------
-  // API error state
+  // Render buildings
+  // ---------------------------------------------------------
+
+  useEffect(() => {
+    const mapInstance = map.current;
+
+    if (!mapInstance || buildings.length === 0) {
+      return;
+    }
+
+    const geojson: FeatureCollection<Polygon> = {
+      type: "FeatureCollection",
+
+      features: buildings.map((building) => ({
+        type: "Feature",
+
+        properties: {
+          building_id: building.building_id,
+        },
+
+        geometry: building.footprint,
+      })),
+    };
+
+    const existingSource =
+      mapInstance.getSource("buildings");
+
+    if (existingSource) {
+      (
+        existingSource as maplibregl.GeoJSONSource
+      ).setData(geojson);
+
+      return;
+    }
+
+    mapInstance.addSource("buildings", {
+      type: "geojson",
+      data: geojson,
+    });
+
+    mapInstance.addLayer({
+      id: "building-fill",
+      type: "fill",
+      source: "buildings",
+
+      paint: {
+        "fill-color": "#f59e0b",
+        "fill-opacity": 0.8,
+      },
+    });
+
+    mapInstance.addLayer({
+      id: "building-outline",
+      type: "line",
+      source: "buildings",
+
+      paint: {
+        "line-color": "#fef3c7",
+        "line-width": 2,
+      },
+    });
+
+    mapInstance.on(
+      "click",
+      "building-fill",
+      (event) => {
+        const feature = event.features?.[0];
+
+        if (!feature) {
+          return;
+        }
+
+        const buildingId =
+          feature.properties?.building_id;
+
+        const building = buildings.find(
+          (candidate) =>
+            candidate.building_id === buildingId
+        );
+
+        if (!building) {
+          return;
+        }
+
+        setSelectedBuilding(building);
+      }
+    );
+
+    mapInstance.on(
+      "mouseenter",
+      "building-fill",
+      () => {
+        mapInstance.getCanvas().style.cursor =
+          "pointer";
+      }
+    );
+
+    mapInstance.on(
+      "mouseleave",
+      "building-fill",
+      () => {
+        mapInstance.getCanvas().style.cursor = "";
+      }
+    );
+  }, [buildings]);
+
+  // ---------------------------------------------------------
+  // Error state
   // ---------------------------------------------------------
 
   if (error) {
@@ -211,7 +338,7 @@ function App() {
   }
 
   // ---------------------------------------------------------
-  // Application
+  // UI
   // ---------------------------------------------------------
 
   return (
@@ -251,50 +378,118 @@ function App() {
           )}
 
           {selectedParcel && (
-            <div className="property">
+            <>
+              <div className="property">
+                <span className="entity-type">
+                  PARCEL
+                </span>
+
+                <h3>
+                  {selectedParcel.parcel_id}
+                </h3>
+
+                <dl>
+                  <dt>Name</dt>
+                  <dd>
+                    {selectedParcel.name ?? "—"}
+                  </dd>
+
+                  <dt>Official ULPIN</dt>
+                  <dd>
+                    {selectedParcel.official_ulpin ??
+                      "Not available"}
+                  </dd>
+
+                  <dt>Source</dt>
+                  <dd>
+                    {selectedParcel.source_type}
+                  </dd>
+
+                  <dt>Verification</dt>
+                  <dd>
+                    {
+                      selectedParcel.verification_status
+                    }
+                  </dd>
+                </dl>
+
+                {selectedParcel.source_type ===
+                  "synthetic" && (
+                  <div className="synthetic-warning">
+                    Synthetic demonstration data
+                  </div>
+                )}
+              </div>
+
+              <div className="hierarchy">
+                <h3>Buildings</h3>
+
+                {buildings.length === 0 && (
+                  <p>No buildings loaded.</p>
+                )}
+
+                {buildings.map((building) => (
+                  <button
+                    key={building.building_id}
+                    className="entity-button"
+                    onClick={() =>
+                      setSelectedBuilding(building)
+                    }
+                  >
+                    <strong>
+                      {building.building_id}
+                    </strong>
+
+                    <span>
+                      {building.floor_count ?? "?"} floors
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {selectedBuilding && (
+            <div className="property building-property">
               <span className="entity-type">
-                PARCEL
+                BUILDING
               </span>
 
               <h3>
-                {selectedParcel.parcel_id}
+                {selectedBuilding.building_id}
               </h3>
 
               <dl>
                 <dt>Name</dt>
-
                 <dd>
-                  {selectedParcel.name ?? "—"}
+                  {selectedBuilding.name ?? "—"}
                 </dd>
 
-                <dt>Official ULPIN</dt>
-
+                <dt>Height</dt>
                 <dd>
-                  {selectedParcel.official_ulpin ??
-                    "Not available"}
+                  {selectedBuilding.height_m !== null
+                    ? `${selectedBuilding.height_m} m`
+                    : "Unknown"}
+                </dd>
+
+                <dt>Floors</dt>
+                <dd>
+                  {selectedBuilding.floor_count ??
+                    "Unknown"}
                 </dd>
 
                 <dt>Source</dt>
-
                 <dd>
-                  {selectedParcel.source_type}
+                  {selectedBuilding.source_type}
                 </dd>
 
                 <dt>Verification</dt>
-
                 <dd>
                   {
-                    selectedParcel.verification_status
+                    selectedBuilding.verification_status
                   }
                 </dd>
               </dl>
-
-              {selectedParcel.source_type ===
-                "synthetic" && (
-                <div className="synthetic-warning">
-                  Synthetic demonstration data
-                </div>
-              )}
             </div>
           )}
         </aside>

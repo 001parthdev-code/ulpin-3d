@@ -198,3 +198,50 @@ body {
     border-left: 0;
   }
 }
+
+.hierarchy {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #1f2937;
+}
+
+.hierarchy h3 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.entity-button {
+  width: 100%;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  border: 1px solid #374151;
+  border-radius: 6px;
+
+  background: #1f2937;
+  color: #e5e7eb;
+
+  cursor: pointer;
+}
+
+.entity-button:hover {
+  background: #273449;
+}
+
+.entity-button span {
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.building-property {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid #1f2937;
+}
