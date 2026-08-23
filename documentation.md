@@ -3390,3 +3390,907 @@ When development resumes:
 Resume objective:
 
 > **Turn the working parcel viewer into a Parcel → Building property explorer without breaking the known-good P001 pipeline.**
+
+
+# 88. 3D Visualization Phase
+
+After completing the 2D parcel/building workflow and establishing shared application selection state, development moved into the core 3D visualization phase.
+
+The objective was to extend the existing spatial hierarchy:
+
+```text
+Parcel
+   ↓
+Building
+   ↓
+Floor
+   ↓
+Unit
+```
+
+from database/API representation into an interactive three-dimensional property viewer.
+
+CesiumJS was selected as the 3D geospatial rendering engine.
+
+---
+
+# 89. Shared 2D / 3D Application Model
+
+The application now supports two visualization modes:
+
+```text
+2D MAP
+   │
+   └── MapLibre
+
+3D PROPERTY
+   │
+   └── CesiumJS
+```
+
+These are not separate applications.
+
+Both operate against the same application state and spatial domain model.
+
+The selection hierarchy is conceptually:
+
+```text
+SpatialSelection
+
+parcel
+building
+floor
+unit
+```
+
+This means a selected building remains the same domain entity regardless of whether it is being viewed through MapLibre or Cesium.
+
+---
+
+# 90. View Mode
+
+A shared view state was introduced:
+
+```text
+2D
+or
+3D
+```
+
+The application header provides:
+
+```text
+[ 2D Map ] [ 3D Property ]
+```
+
+The 3D mode remains unavailable until a building has been selected.
+
+The expected workflow is:
+
+```text
+2D Map
+   ↓
+Select Parcel
+   ↓
+Select Building
+   ↓
+Open 3D
+   ↓
+Inspect vertical property
+```
+
+This prevents the 3D viewer from operating without a meaningful property context.
+
+---
+
+# 91. Persistent Viewer Architecture
+
+An early implementation destroyed the MapLibre instance when switching from 2D to 3D.
+
+Returning from 3D caused the 2D viewer to render incorrectly.
+
+The architecture was corrected so that both viewer containers remain mounted.
+
+Conceptually:
+
+```text
+VIEWER WORKSPACE
+│
+├── MapLibre instance
+│
+└── Cesium instance
+        │
+        ▼
+Visibility switching
+```
+
+The application now changes viewer visibility rather than repeatedly destroying and reconstructing the visualization engines.
+
+This provides several benefits:
+
+* camera state can survive mode changes
+* loaded spatial resources can survive mode changes
+* switching is faster
+* viewer lifecycle logic is simpler
+* future synchronization becomes easier
+
+MapLibre is explicitly resized when returning to 2D mode.
+
+---
+
+# 92. CesiumJS Integration
+
+CesiumJS was installed as the dedicated 3D geospatial engine.
+
+The initial integration required configuring Vite to correctly serve Cesium's runtime assets.
+
+Cesium depends on runtime resources including:
+
+```text
+Workers
+Assets
+Widgets
+WebAssembly / supporting resources
+```
+
+A Cesium-specific Vite integration was ultimately used rather than maintaining custom asset-copy logic.
+
+The integration was verified when Cesium successfully initialized a WebGL rendering environment inside the React application.
+
+---
+
+# 93. Cesium Integration Issues
+
+Several integration problems were encountered and resolved.
+
+## Runtime Asset Decoding
+
+An early configuration produced:
+
+```text
+InvalidStateError:
+The source image could not be decoded.
+```
+
+This was traced to Cesium runtime asset handling rather than PostGIS or application geometry.
+
+The asset configuration was simplified using a Cesium-specific Vite integration.
+
+## Plugin Export Compatibility
+
+The installed package version exposed a default plugin function.
+
+Its TypeScript declaration confirmed:
+
+```text
+vitePluginCesium(options?) → Vite Plugin
+```
+
+The Vite configuration was adjusted to match the installed package API rather than relying on assumptions about another plugin version.
+
+## Black Cesium Screen
+
+After the runtime configuration was fixed, Cesium initially displayed a black screen.
+
+This was expected because the viewer had deliberately been configured with:
+
+```text
+No basemap
+No terrain
+Hidden globe
+No entities
+Dark background
+```
+
+The black canvas therefore confirmed that the Cesium rendering engine itself was functioning.
+
+---
+
+# 94. Isolated Property Inspection Mode
+
+The current Cesium environment is intentionally configured as an isolated property viewer.
+
+At this stage:
+
+```text
+Globe       hidden
+Basemap     disabled
+Terrain     disabled
+Property    visible
+```
+
+This allows development to focus on the vertical-property geometry without introducing unrelated terrain or imagery variables.
+
+A real geospatial context can be added later.
+
+---
+
+# 95. First 3D Building
+
+The first Cesium domain entity rendered was:
+
+```text
+B001
+```
+
+B001 was not recreated manually inside the frontend.
+
+Its geometry originated from the existing spatial model:
+
+```text
+PostGIS building footprint
+        +
+building.height_m
+        ↓
+FastAPI
+        ↓
+Building object
+        ↓
+Cesium polygon
+        ↓
+3D extrusion
+```
+
+For B001:
+
+```text
+Height = 9 m
+```
+
+Cesium therefore extruded the existing building footprint from:
+
+```text
+0 m
+↓
+9 m
+```
+
+This produced the project's first georeferenced 3D building volume.
+
+---
+
+# 96. Why the First Building Appeared as a Cuboid
+
+The first B001 representation appeared as a large rectangular/cuboid building.
+
+This was correct.
+
+The synthetic building footprint is rectangular, and the renderer was instructed to extrude that footprint continuously through its full height.
+
+Conceptually:
+
+```text
+2D footprint
+      +
+9 m height
+      ↓
+Solid building mass
+```
+
+This proved:
+
+```text
+PostGIS footprint             ✓
+GeoJSON coordinates           ✓
+Cesium coordinate conversion  ✓
+Metric extrusion              ✓
+3D entity creation            ✓
+Camera framing                ✓
+```
+
+The next step was therefore not to artificially improve the cuboid.
+
+Instead, the building was decomposed according to the semantic property model already stored in PostGIS.
+
+---
+
+# 97. Floor-Level 3D Model
+
+B001 contains three floors:
+
+```text
+B001
+│
+├── F001
+│   0–3 m
+│
+├── F002
+│   3–6 m
+│
+└── F003
+    6–9 m
+```
+
+Rather than representing the building only as one solid extrusion, Cesium now receives individual floor entities.
+
+Conceptually:
+
+```text
+             9 m
+      ┌───────────────┐
+      │     F003      │
+      ├───────────────┤
+      │     F002      │
+      ├───────────────┤
+      │     F001      │
+      └───────────────┘
+             0 m
+```
+
+Each floor preserves:
+
+```text
+floor_id
+floor_number
+footprint
+z_min_m
+z_max_m
+source
+verification status
+```
+
+The 3D viewer therefore derives floor volumes from the same semantic information already used by the backend.
+
+---
+
+# 98. Unit-Level 3D Model
+
+Property units are represented using the same extrusion principle.
+
+For example:
+
+```text
+Unit U101
+
+2D footprint
+      +
+z_min = 0 m
+      +
+z_max = 3 m
+      ↓
+3D unit volume
+```
+
+The synthetic demonstration hierarchy is:
+
+```text
+B001
+
+Floor 3
+├── U301
+└── U302
+
+Floor 2
+├── U201
+└── U202
+
+Floor 1
+├── U101
+└── U102
+```
+
+Conceptually, the building can therefore be represented as:
+
+```text
+        ┌─────────┬─────────┐
+6–9 m   │  U301   │  U302   │
+        ├─────────┼─────────┤
+3–6 m   │  U201   │  U202   │
+        ├─────────┼─────────┤
+0–3 m   │  U101   │  U102   │
+        └─────────┴─────────┘
+```
+
+This is the first visualization that directly represents the project's vertical-property concept.
+
+---
+
+# 99. Semantic 3D Rather Than Mesh-Only 3D
+
+An important architectural property has been preserved.
+
+Cesium does not receive one anonymous mesh representing the entire property.
+
+Instead, the renderer receives identifiable domain entities:
+
+```text
+Building B001
+Floor F001
+Floor F002
+Floor F003
+Unit U101
+Unit U102
+...
+```
+
+Therefore:
+
+```text
+3D object
+   ↓
+still has
+   ↓
+domain identity
+```
+
+This is fundamental to the project.
+
+The objective is not merely to render buildings.
+
+The objective is to render a machine-readable spatial hierarchy.
+
+---
+
+# 100. Floor and Unit Selection State
+
+The React application now understands the complete selection chain:
+
+```text
+Parcel
+   ↓
+Building
+   ↓
+Floor
+   ↓
+Unit
+```
+
+For example:
+
+```text
+P001
+   ↓
+B001
+   ↓
+F001
+   ↓
+U101
+```
+
+Selecting a floor causes the frontend to retrieve its property units.
+
+The selected state can then be reflected in the Cesium visualization.
+
+This creates the current interaction direction:
+
+```text
+Property Explorer
+       ↓
+React selection
+       ↓
+Cesium rendering
+```
+
+Future work will implement the reverse direction:
+
+```text
+Cesium click
+       ↓
+React selection
+       ↓
+Property Explorer
+```
+
+---
+
+# 101. 360-Degree Property Inspection
+
+The Cesium viewer was upgraded from a static 3D view into a property-inspection environment.
+
+Camera controls support:
+
+```text
+rotation
+tilt
+zoom
+look
+translation
+```
+
+The user can therefore inspect the property from arbitrary viewpoints rather than viewing it from one fixed camera.
+
+This enables:
+
+```text
+Top inspection
+Side inspection
+Front/back inspection
+Oblique inspection
+Full orbit around property
+```
+
+This is important because vertical property relationships are significantly easier to understand from multiple viewpoints.
+
+---
+
+# 102. Camera Presets
+
+Three initial camera presets were added.
+
+## Reset
+
+Returns to an oblique property-inspection perspective.
+
+## Top
+
+Provides a near-plan/cadastral perspective.
+
+This is useful for understanding horizontal footprints and unit boundaries.
+
+## Side
+
+Provides a perspective emphasizing the vertical stack.
+
+This is useful for understanding:
+
+```text
+Floor 3
+Floor 2
+Floor 1
+```
+
+and their Z relationships.
+
+The presets complement free 360-degree camera movement rather than replacing it.
+
+---
+
+# 103. Spatial Integrity in Visualization
+
+The 3D viewer does not artificially increase building height merely to make the model visually impressive.
+
+B001 remains:
+
+```text
+9 m
+```
+
+because that is the height stored in the prototype spatial model.
+
+Similarly:
+
+```text
+F001 = 0–3 m
+F002 = 3–6 m
+F003 = 6–9 m
+```
+
+Visualization improvements should come from:
+
+```text
+camera angle
+transparency
+selection highlighting
+exploded visualization
+outlines
+lighting
+interaction
+```
+
+rather than falsifying spatial geometry.
+
+---
+
+# 104. Planned Exploded View
+
+A future visualization mode is planned for vertical inspection.
+
+Normal mode preserves true Z positions:
+
+```text
+┌───────────────┐
+│ F003          │
+├───────────────┤
+│ F002          │
+├───────────────┤
+│ F001          │
+└───────────────┘
+```
+
+Exploded mode will visually separate floors:
+
+```text
+┌───────────────┐
+│ F003          │
+└───────────────┘
+
+        gap
+
+┌───────────────┐
+│ F002          │
+└───────────────┘
+
+        gap
+
+┌───────────────┐
+│ F001          │
+└───────────────┘
+```
+
+The important distinction is:
+
+> Exploded mode changes only visualization offsets.
+
+The authoritative/prototype spatial Z values remain unchanged in PostGIS.
+
+---
+
+# 105. Current 2D / 3D Architecture
+
+The application now has the following visualization architecture:
+
+```text
+                    SHARED DOMAIN STATE
+                           │
+               P001 → B001 → Floor → Unit
+                           │
+             ┌─────────────┴─────────────┐
+             │                           │
+             ▼                           ▼
+        MAPLIBRE                     CESIUMJS
+           2D                           3D
+             │                           │
+             └─────────────┬─────────────┘
+                           │
+                           ▼
+                   PROPERTY EXPLORER
+```
+
+Both viewers ultimately represent the same spatial entities.
+
+---
+
+# 106. Current End-to-End System
+
+The system has now reached:
+
+```text
+Spatial database
+      ↓
+PostGIS domain model
+      ↓
+Parcel
+      ↓
+Building
+      ↓
+Floor
+      ↓
+Unit
+      ↓
+FastAPI
+      ↓
+JSON / GeoJSON
+      ↓
+React
+      ↓
+Shared selection state
+      ↓
+┌───────────────┬────────────────┐
+│               │                │
+▼               ▼                ▼
+MapLibre      Cesium       Property Explorer
+2D            3D           Metadata/Hierarchy
+```
+
+This is the first point where the prototype demonstrates both horizontal and vertical property information through the same underlying model.
+
+---
+
+# 107. Current Verified User Journey
+
+The current working user journey is approximately:
+
+```text
+OPEN APPLICATION
+       ↓
+VIEW 2D MAP
+       ↓
+SELECT P001
+       ↓
+VIEW PARCEL METADATA
+       ↓
+VIEW B001
+       ↓
+SELECT B001
+       ↓
+LOAD F001 / F002 / F003
+       ↓
+OPEN 3D
+       ↓
+VIEW B001 IN CESIUM
+       ↓
+ORBIT PROPERTY 360°
+       ↓
+SELECT FLOOR
+       ↓
+LOAD FLOOR UNITS
+       ↓
+VIEW UNIT VOLUMES
+```
+
+This is substantially closer to the intended final product journey.
+
+---
+
+# 108. Current Project Status
+
+At this checkpoint:
+
+```text
+FOUNDATION
+
+Git / GitHub                       ✓
+Docker                             ✓
+PostgreSQL                         ✓
+PostGIS                            ✓
+
+
+SPATIAL DOMAIN
+
+Parcel                             ✓
+Building                           ✓
+Floor                              ✓
+Unit                               ✓
+Provenance                         ✓
+Vertical ranges                    ✓
+
+
+BACKEND
+
+FastAPI                            ✓
+Hierarchy traversal                ✓
+GeoJSON                            ✓
+CORS                               ✓
+Tests                              ✓
+
+
+2D
+
+React                              ✓
+MapLibre                           ✓
+P001 rendering                     ✓
+B001 rendering                     ✓
+Parcel selection                   ✓
+Building selection                 ✓
+Property Explorer                  ✓
+
+
+3D
+
+CesiumJS                           ✓
+Vite/Cesium runtime                ✓
+Persistent 2D/3D viewers           ✓
+Building extrusion                 ✓
+Floor volumes                      ✓
+Unit volumes                       ✓
+360° camera inspection             ✓
+Top camera                         ✓
+Side camera                        ✓
+Reset camera                       ✓
+
+
+NEXT
+
+Cesium → React picking              NEXT
+Exploded floor view                 PLANNED
+All-unit loading                    PLANNED
+Real neighborhood ingestion         PLANNED
+Roads / parks / urban context       PLANNED
+Multiple detailed properties        PLANNED
+Final UI polish                     PLANNED
+```
+
+---
+
+# 109. Current Git Checkpoint
+
+The current 3D milestone should be committed as:
+
+```text
+feat(3d): add Cesium vertical property viewer
+```
+
+This commit represents:
+
+```text
+PostGIS spatial hierarchy
+        ↓
+FastAPI
+        ↓
+React
+        ↓
+Cesium
+        ↓
+3D Building / Floor / Unit representation
+        ↓
+360° property inspection
+```
+
+This is a major prototype checkpoint and should be pushed to GitHub before continuing.
+
+---
+
+# 110. Next Development Milestone
+
+The next major capability is **direct 3D picking**.
+
+Current interaction:
+
+```text
+Property Explorer
+       ↓
+select Floor / Unit
+       ↓
+Cesium updates
+```
+
+Target interaction:
+
+```text
+Cesium
+   ↓
+click 3D object
+   ↓
+identify domain entity
+   ↓
+React selection
+   ↓
+Property Explorer updates
+```
+
+For example:
+
+```text
+User clicks U202 in 3D
+        ↓
+Cesium identifies U202
+        ↓
+React selects:
+P001
+B001
+F002
+U202
+        ↓
+Property Explorer displays:
+Unit 202
+Vertical range 3–6 m
+Source synthetic
+Verification unverified
+```
+
+Once this works, the 3D visualization becomes a fully interactive interface to the spatial domain model rather than only a renderer controlled from the sidebar.
+
+---
+
+# 111. Freeze Point
+
+The repository should now be treated as a known-good checkpoint.
+
+Before the next implementation phase:
+
+```text
+npm run build
+python -m pytest -v
+```
+
+should remain clean.
+
+The current prototype can:
+
+```text
+Store spatial property entities
+        ↓
+Validate their relationships
+        ↓
+Expose them through an API
+        ↓
+Navigate them in 2D
+        ↓
+Navigate their hierarchy
+        ↓
+Represent them in 3D
+        ↓
+Inspect them from 360°
+```
+
+The next development session should begin from this stable point and add direct interaction with the 3D spatial entities.
