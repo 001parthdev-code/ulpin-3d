@@ -28,9 +28,9 @@ function App() {
 
   const [error, setError] = useState<string | null>(null);
 
-  // ---------------------------------------------------------
-  // Load parcels
-  // ---------------------------------------------------------
+  // =========================================================
+  // LOAD PARCELS
+  // =========================================================
 
   useEffect(() => {
     async function loadParcels() {
@@ -49,9 +49,9 @@ function App() {
     loadParcels();
   }, []);
 
-  // ---------------------------------------------------------
-  // Initialize MapLibre
-  // ---------------------------------------------------------
+  // =========================================================
+  // INITIALIZE MAPLIBRE
+  // =========================================================
 
   useEffect(() => {
     if (!mapContainer.current || map.current) {
@@ -93,9 +93,9 @@ function App() {
     };
   }, []);
 
-  // ---------------------------------------------------------
-  // Render parcels
-  // ---------------------------------------------------------
+  // =========================================================
+  // RENDER PARCELS
+  // =========================================================
 
   useEffect(() => {
     const mapInstance = map.current;
@@ -104,7 +104,7 @@ function App() {
       return;
     }
 
-    const addParcelLayer = () => {
+    const addParcelLayers = () => {
       if (mapInstance.getSource("parcels")) {
         return;
       }
@@ -211,15 +211,15 @@ function App() {
     };
 
     if (mapInstance.loaded()) {
-      addParcelLayer();
+      addParcelLayers();
     } else {
-      mapInstance.once("load", addParcelLayer);
+      mapInstance.once("load", addParcelLayers);
     }
   }, [parcels]);
 
-  // ---------------------------------------------------------
-  // Render buildings
-  // ---------------------------------------------------------
+  // =========================================================
+  // RENDER BUILDINGS
+  // =========================================================
 
   useEffect(() => {
     const mapInstance = map.current;
@@ -265,7 +265,7 @@ function App() {
 
       paint: {
         "fill-color": "#f59e0b",
-        "fill-opacity": 0.8,
+        "fill-opacity": 0.82,
       },
     });
 
@@ -324,9 +324,9 @@ function App() {
     );
   }, [buildings]);
 
-  // ---------------------------------------------------------
-  // Error state
-  // ---------------------------------------------------------
+  // =========================================================
+  // ERROR STATE
+  // =========================================================
 
   if (error) {
     return (
@@ -337,15 +337,16 @@ function App() {
     );
   }
 
-  // ---------------------------------------------------------
-  // UI
-  // ---------------------------------------------------------
+  // =========================================================
+  // APPLICATION UI
+  // =========================================================
 
   return (
     <main className="app">
       <header className="header">
         <div>
           <h1>3D ULPIN</h1>
+
           <p>
             Vertical Property Mapping Prototype
           </p>
@@ -369,7 +370,9 @@ function App() {
 
           {!selectedParcel && (
             <div className="empty-state">
-              <p>Select a parcel on the map.</p>
+              <p>
+                Select a parcel on the map.
+              </p>
 
               <small>
                 Loaded parcels: {parcels.length}
@@ -380,7 +383,7 @@ function App() {
           {selectedParcel && (
             <>
               <div className="property">
-                <span className="entity-type">
+                <span className="entity-type parcel-type">
                   PARCEL
                 </span>
 
@@ -390,22 +393,26 @@ function App() {
 
                 <dl>
                   <dt>Name</dt>
+
                   <dd>
                     {selectedParcel.name ?? "—"}
                   </dd>
 
                   <dt>Official ULPIN</dt>
+
                   <dd>
                     {selectedParcel.official_ulpin ??
                       "Not available"}
                   </dd>
 
                   <dt>Source</dt>
+
                   <dd>
                     {selectedParcel.source_type}
                   </dd>
 
                   <dt>Verification</dt>
+
                   <dd>
                     {
                       selectedParcel.verification_status
@@ -422,75 +429,115 @@ function App() {
               </div>
 
               <div className="hierarchy">
-                <h3>Buildings</h3>
+                <div className="hierarchy-header">
+                  <h3>Buildings</h3>
+
+                  <span>
+                    {buildings.length}
+                  </span>
+                </div>
 
                 {buildings.length === 0 && (
-                  <p>No buildings loaded.</p>
+                  <p className="hierarchy-empty">
+                    No buildings loaded.
+                  </p>
                 )}
 
                 {buildings.map((building) => (
                   <button
                     key={building.building_id}
-                    className="entity-button"
+                    type="button"
+                    className={
+                      selectedBuilding?.building_id ===
+                      building.building_id
+                        ? "entity-button entity-button-selected"
+                        : "entity-button"
+                    }
                     onClick={() =>
                       setSelectedBuilding(building)
                     }
                   >
-                    <strong>
-                      {building.building_id}
-                    </strong>
+                    <div className="entity-button-main">
+                      <span className="building-icon">
+                        B
+                      </span>
 
-                    <span>
+                      <div>
+                        <strong>
+                          {building.building_id}
+                        </strong>
+
+                        <small>
+                          {building.name ??
+                            "Unnamed building"}
+                        </small>
+                      </div>
+                    </div>
+
+                    <span className="floor-count">
                       {building.floor_count ?? "?"} floors
                     </span>
                   </button>
                 ))}
               </div>
+
+              {selectedBuilding && (
+                <div className="property building-property">
+                  <span className="entity-type building-type">
+                    BUILDING
+                  </span>
+
+                  <h3>
+                    {selectedBuilding.building_id}
+                  </h3>
+
+                  <dl>
+                    <dt>Name</dt>
+
+                    <dd>
+                      {selectedBuilding.name ?? "—"}
+                    </dd>
+
+                    <dt>Height</dt>
+
+                    <dd>
+                      {selectedBuilding.height_m !==
+                      null
+                        ? `${selectedBuilding.height_m} m`
+                        : "Unknown"}
+                    </dd>
+
+                    <dt>Floors</dt>
+
+                    <dd>
+                      {selectedBuilding.floor_count ??
+                        "Unknown"}
+                    </dd>
+
+                    <dt>Source</dt>
+
+                    <dd>
+                      {selectedBuilding.source_type}
+                    </dd>
+
+                    <dt>Verification</dt>
+
+                    <dd>
+                      {
+                        selectedBuilding.verification_status
+                      }
+                    </dd>
+                  </dl>
+
+                  {selectedBuilding.source_type ===
+                    "synthetic" && (
+                    <div className="synthetic-warning">
+                      Synthetic demonstration data
+                    </div>
+                  )}
+                </div>
+              )}
             </>
-          )}
-
-          {selectedBuilding && (
-            <div className="property building-property">
-              <span className="entity-type">
-                BUILDING
-              </span>
-
-              <h3>
-                {selectedBuilding.building_id}
-              </h3>
-
-              <dl>
-                <dt>Name</dt>
-                <dd>
-                  {selectedBuilding.name ?? "—"}
-                </dd>
-
-                <dt>Height</dt>
-                <dd>
-                  {selectedBuilding.height_m !== null
-                    ? `${selectedBuilding.height_m} m`
-                    : "Unknown"}
-                </dd>
-
-                <dt>Floors</dt>
-                <dd>
-                  {selectedBuilding.floor_count ??
-                    "Unknown"}
-                </dd>
-
-                <dt>Source</dt>
-                <dd>
-                  {selectedBuilding.source_type}
-                </dd>
-
-                <dt>Verification</dt>
-                <dd>
-                  {
-                    selectedBuilding.verification_status
-                  }
-                </dd>
-              </dl>
-            </div>
           )}
         </aside>
       </section>

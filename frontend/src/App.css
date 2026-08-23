@@ -14,6 +14,13 @@ body {
   overflow: hidden;
 }
 
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
 .app {
   width: 100vw;
   height: 100vh;
@@ -33,6 +40,10 @@ body {
     sans-serif;
 }
 
+/* =========================================================
+   HEADER
+   ========================================================= */
+
 .header {
   height: 72px;
   flex-shrink: 0;
@@ -44,18 +55,24 @@ body {
   justify-content: space-between;
 
   border-bottom: 1px solid #1f2937;
+
   background: #0b1120;
 }
 
 .header h1 {
   margin: 0;
+
   font-size: 20px;
+  font-weight: 700;
+
+  letter-spacing: -0.02em;
 }
 
 .header p {
   margin: 4px 0 0;
 
   color: #94a3b8;
+
   font-size: 13px;
 }
 
@@ -65,6 +82,7 @@ body {
   gap: 8px;
 
   color: #94a3b8;
+
   font-size: 13px;
 }
 
@@ -75,15 +93,29 @@ body {
   border-radius: 50%;
 
   background: #22c55e;
+
+  box-shadow: 0 0 10px
+    rgba(34, 197, 94, 0.5);
 }
+
+/* =========================================================
+   WORKSPACE
+   ========================================================= */
 
 .workspace {
   flex: 1;
   min-height: 0;
 
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+
+  grid-template-columns:
+    minmax(0, 1fr)
+    340px;
 }
+
+/* =========================================================
+   MAP
+   ========================================================= */
 
 .map {
   width: 100%;
@@ -91,7 +123,13 @@ body {
   min-height: 0;
 
   position: relative;
+
+  background: #111827;
 }
+
+/* =========================================================
+   PROPERTY PANEL
+   ========================================================= */
 
 .panel {
   padding: 24px;
@@ -103,11 +141,18 @@ body {
   background: #111827;
 }
 
-.panel h2 {
+.panel > h2 {
   margin: 0 0 24px;
 
+  color: #f8fafc;
+
   font-size: 16px;
+  font-weight: 600;
 }
+
+/* =========================================================
+   EMPTY STATE
+   ========================================================= */
 
 .empty-state {
   margin-top: 32px;
@@ -117,33 +162,64 @@ body {
 
 .empty-state p {
   margin: 0;
+
+  line-height: 1.5;
 }
 
 .empty-state small {
   display: block;
 
   margin-top: 12px;
+
+  color: #64748b;
+}
+
+/* =========================================================
+   PROPERTY METADATA
+   ========================================================= */
+
+.property {
+  width: 100%;
 }
 
 .entity-type {
-  color: #60a5fa;
+  display: inline-block;
+
+  margin-bottom: 6px;
 
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 700;
 
   letter-spacing: 0.12em;
 }
 
+.parcel-type {
+  color: #60a5fa;
+}
+
+.building-type {
+  color: #fbbf24;
+}
+
 .property h3 {
-  margin: 8px 0 24px;
+  margin: 0 0 22px;
+
+  color: #f8fafc;
 
   font-size: 28px;
+  font-weight: 700;
+
+  letter-spacing: -0.03em;
 }
 
 .property dl {
+  margin: 0;
+
   display: grid;
 
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns:
+    minmax(0, 1fr)
+    minmax(0, 1fr);
 
   gap: 14px;
 }
@@ -157,23 +233,228 @@ body {
 .property dd {
   margin: 0;
 
+  color: #e2e8f0;
+
   text-align: right;
 
   font-size: 13px;
+
+  overflow-wrap: anywhere;
 }
 
-.synthetic-warning {
-  margin-top: 24px;
+/* =========================================================
+   SYNTHETIC DATA WARNING
+   ========================================================= */
 
-  padding: 12px;
+.synthetic-warning {
+  margin-top: 22px;
+
+  padding: 11px 12px;
 
   border: 1px solid #92400e;
   border-radius: 6px;
 
   background: #451a03;
 
+  color: #fdba74;
+
   font-size: 12px;
+  line-height: 1.4;
 }
+
+/* =========================================================
+   HIERARCHY
+   ========================================================= */
+
+.hierarchy {
+  margin-top: 28px;
+
+  padding-top: 20px;
+
+  border-top: 1px solid #1f2937;
+}
+
+.hierarchy-header {
+  margin-bottom: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hierarchy-header h3 {
+  margin: 0;
+
+  color: #94a3b8;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  text-transform: uppercase;
+
+  letter-spacing: 0.1em;
+}
+
+.hierarchy-header > span {
+  min-width: 24px;
+  height: 24px;
+
+  padding: 0 7px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #334155;
+  border-radius: 999px;
+
+  background: #1e293b;
+
+  color: #cbd5e1;
+
+  font-size: 11px;
+}
+
+.hierarchy-empty {
+  margin: 0;
+
+  color: #64748b;
+
+  font-size: 13px;
+}
+
+/* =========================================================
+   ENTITY BUTTON
+   ========================================================= */
+
+.entity-button {
+  width: 100%;
+
+  margin: 0 0 8px;
+
+  padding: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  gap: 12px;
+
+  border: 1px solid #334155;
+  border-radius: 7px;
+
+  background: #1e293b;
+
+  color: #e5e7eb;
+
+  text-align: left;
+
+  cursor: pointer;
+
+  transition:
+    background 120ms ease,
+    border-color 120ms ease,
+    transform 120ms ease;
+}
+
+.entity-button:hover {
+  border-color: #475569;
+
+  background: #273449;
+}
+
+.entity-button:active {
+  transform: translateY(1px);
+}
+
+.entity-button-selected {
+  border-color: #d97706;
+
+  background: #422006;
+}
+
+.entity-button-main {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
+}
+
+.building-icon {
+  width: 30px;
+  height: 30px;
+
+  flex-shrink: 0;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  border: 1px solid #92400e;
+  border-radius: 6px;
+
+  background: #451a03;
+
+  color: #fbbf24;
+
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.entity-button-main div {
+  min-width: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  gap: 2px;
+}
+
+.entity-button strong {
+  color: #f8fafc;
+
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.entity-button small {
+  max-width: 140px;
+
+  overflow: hidden;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.floor-count {
+  flex-shrink: 0;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+}
+
+/* =========================================================
+   BUILDING DETAILS
+   ========================================================= */
+
+.building-property {
+  margin-top: 28px;
+
+  padding-top: 20px;
+
+  border-top: 1px solid #1f2937;
+}
+
+/* =========================================================
+   ERROR SCREEN
+   ========================================================= */
 
 .error-screen {
   width: 100vw;
@@ -182,66 +463,38 @@ body {
   padding: 40px;
 
   background: #0b1120;
+
   color: #e5e7eb;
 
-  font-family: system-ui, sans-serif;
+  font-family:
+    Inter,
+    system-ui,
+    sans-serif;
 }
 
+.error-screen h1 {
+  margin-top: 0;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
 @media (max-width: 800px) {
+  body {
+    overflow: auto;
+  }
+
   .workspace {
     grid-template-columns: 1fr;
-    grid-template-rows: 60vh 1fr;
+
+    grid-template-rows:
+      60vh
+      auto;
   }
 
   .panel {
     border-top: 1px solid #1f2937;
     border-left: 0;
   }
-}
-
-.hierarchy {
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid #1f2937;
-}
-
-.hierarchy h3 {
-  margin: 0 0 12px;
-  font-size: 13px;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.entity-button {
-  width: 100%;
-  padding: 12px 14px;
-  margin-bottom: 8px;
-
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-
-  border: 1px solid #374151;
-  border-radius: 6px;
-
-  background: #1f2937;
-  color: #e5e7eb;
-
-  cursor: pointer;
-}
-
-.entity-button:hover {
-  background: #273449;
-}
-
-.entity-button span {
-  color: #94a3b8;
-  font-size: 12px;
-}
-
-.building-property {
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid #1f2937;
 }
