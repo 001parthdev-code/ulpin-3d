@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 # pyrefly: ignore [missing-import]
 from fastapi.responses import JSONResponse
 
-from .routers import buildings, floors, parcels, units
+from .routers import buildings, floors, neighborhood, parcels, units
 
 app = FastAPI(
     title="3D ULPIN Spatial API",
@@ -38,3 +38,4 @@ app.include_router(parcels.router)
 app.include_router(buildings.router)
 app.include_router(floors.router)
 app.include_router(units.router)
+app.include_router(neighborhood.router)
