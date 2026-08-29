@@ -219,6 +219,12 @@ button {
 }
 
 .map {
+  position: absolute;
+  inset: 0;
+
+  width: 100%;
+  height: 100%;
+
   background: #111827;
 }
 
@@ -728,6 +734,107 @@ button {
    RESPONSIVE
    ========================================================= */
 
+/* =========================================================
+   REAL NEIGHBORHOOD
+   ========================================================= */
+
+.neighborhood-stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+
+  color: #64748b;
+  font-size: 10px;
+}
+
+.neighborhood-stats span {
+  white-space: nowrap;
+}
+
+.neighborhood-card {
+  margin-bottom: 20px;
+  padding: 14px;
+
+  border: 1px solid #1f5132;
+  border-radius: 8px;
+
+  background: #0b1f17;
+}
+
+.neighborhood-type {
+  color: #4ade80;
+}
+
+.neighborhood-grid {
+  margin-top: 12px;
+
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.neighborhood-grid div {
+  padding: 10px;
+
+  display: flex;
+  flex-direction: column;
+
+  border: 1px solid #1f3b2c;
+  border-radius: 6px;
+
+  background: #0f291d;
+}
+
+.neighborhood-grid strong {
+  color: #f8fafc;
+  font-size: 18px;
+}
+
+.neighborhood-grid span {
+  margin-top: 2px;
+
+  color: #6ee7b7;
+  font-size: 9px;
+
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.osm-source {
+  margin-top: 10px;
+
+  color: #64748b;
+  font-size: 9px;
+}
+
+/* =========================================================
+   OSM ATTRIBUTION
+   ========================================================= */
+
+.osm-attribution {
+  position: absolute;
+
+  right: 8px;
+  bottom: 8px;
+
+  z-index: 20;
+
+  padding: 4px 7px;
+
+  border-radius: 4px;
+
+  background: rgba(15, 23, 42, 0.82);
+
+  color: #94a3b8;
+  font-size: 9px;
+
+  pointer-events: none;
+}
+
+/* =========================================================
+   RESPONSIVE
+   ========================================================= */
+
 @media (max-width: 900px) {
   .header {
     height: auto;
@@ -775,5 +882,9 @@ button {
 
   .placeholder-stats {
     grid-template-columns: 1fr;
+  }
+
+  .neighborhood-stats {
+    display: none;
   }
 }
