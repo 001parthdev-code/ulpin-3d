@@ -22,14 +22,16 @@ DATABASE_URL = (
     "postgresql://ulpin:ulpin_dev_password@localhost:5432/ulpin"
 )
 
-# Existing prototype center.
-CENTER_LAT = 19.0007
-CENTER_LON = 72.8309
+# ============================================================
+# BKC — MUMBAI
+# ============================================================
 
-# Approximately 500 m in each direction.
-# Total AOI ≈ 1 km x 1 km.
-LAT_DELTA = 0.0045
-LON_DELTA = 0.0052
+CENTER_LAT = 19.0668
+CENTER_LON = 72.8691
+
+# Roughly 2 km x 2 km AOI.
+LAT_DELTA = 0.009
+LON_DELTA = 0.0105
 
 SOUTH = CENTER_LAT - LAT_DELTA
 NORTH = CENTER_LAT + LAT_DELTA

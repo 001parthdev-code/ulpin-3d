@@ -1,4 +1,8 @@
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import type {
   FeatureCollection,
@@ -47,6 +51,9 @@ const EMPTY_SELECTION: SpatialSelection = {
   unit: null,
 };
 
+const RAHEJA_TOWER_ID =
+  "OSM-WAY-353159496";
+
 function App() {
   // =========================================================
   // VIEW + SELECTION
@@ -59,6 +66,28 @@ function App() {
     useState<SpatialSelection>(
       EMPTY_SELECTION
     );
+
+  const [
+    selectedOsmBuilding,
+    setSelectedOsmBuilding,
+  ] = useState<
+    NeighborhoodBuildingProperties | null
+  >(null);
+
+  const [
+    focusedBuildingId,
+    setFocusedBuildingId,
+  ] = useState<string | null>(null);
+
+  const [
+    verticalBuildingId,
+    setVerticalBuildingId,
+  ] = useState<string | null>(null);
+
+  const [
+    buildingSearch,
+    setBuildingSearch,
+  ] = useState("");
 
   // =========================================================
   // DETAILED PROPERTY DATA
@@ -117,10 +146,9 @@ function App() {
   const [
     neighborhoodSummary,
     setNeighborhoodSummary,
-  ] =
-    useState<NeighborhoodSummary | null>(
-      null
-    );
+  ] = useState<
+    NeighborhoodSummary | null
+  >(null);
 
   // =========================================================
   // UI STATE
@@ -133,14 +161,76 @@ function App() {
     useState<string | null>(null);
 
   // =========================================================
-  // INITIAL APPLICATION LOAD
-  //
-  // Load both:
-  //
-  // 1. Detailed prototype property data
-  // 2. Real OSM neighborhood context
-  //
-  // in parallel.
+  // BUILDING SEARCH
+  // =========================================================
+
+  const searchableBuildings =
+    useMemo(() => {
+      if (!neighborhoodBuildings) {
+        return [];
+      }
+
+      return neighborhoodBuildings.features
+        .filter(
+          (feature) =>
+            Boolean(
+              feature.properties.name
+            )
+        )
+        .sort((a, b) =>
+          (
+            a.properties.name ?? ""
+          ).localeCompare(
+            b.properties.name ?? ""
+          )
+        );
+    }, [
+      neighborhoodBuildings,
+    ]);
+
+  const buildingSearchResults =
+    useMemo(() => {
+      const query =
+        buildingSearch
+          .trim()
+          .toLowerCase();
+
+      if (!query) {
+        return searchableBuildings.slice(
+          0,
+          8
+        );
+      }
+
+      return searchableBuildings
+        .filter((feature) => {
+          const properties =
+            feature.properties;
+
+          const searchableText = [
+            properties.name,
+            properties.building_id,
+            properties.building_type,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+          return searchableText.includes(
+            query
+          );
+        })
+        .slice(
+          0,
+          8
+        );
+    }, [
+      buildingSearch,
+      searchableBuildings,
+    ]);
+
+  // =========================================================
+  // INITIAL LOAD
   // =========================================================
 
   useEffect(() => {
@@ -193,6 +283,108 @@ function App() {
   }, []);
 
   // =========================================================
+  // REAL OSM BUILDING SELECTION
+  // =========================================================
+
+  function selectNeighborhoodBuilding(
+    building: NeighborhoodBuildingProperties
+  ) {
+    setSelectedOsmBuilding(
+      building
+    );
+
+    setFocusedBuildingId(
+      building.building_id
+    );
+
+    if (
+      verticalBuildingId !==
+      building.building_id
+    ) {
+      setVerticalBuildingId(null);
+      setFloors([]);
+      setUnits([]);
+    }
+  }
+
+  function focusBuilding(
+    building: NeighborhoodBuildingProperties
+  ) {
+    setSelectedOsmBuilding(
+      building
+    );
+
+    setFocusedBuildingId(
+      building.building_id
+    );
+
+    setVerticalBuildingId(null);
+
+    setFloors([]);
+    setUnits([]);
+
+    setBuildingSearch(
+      building.name ?? ""
+    );
+  }
+
+  // =========================================================
+  // VERTICAL MODEL INSPECTION
+  // =========================================================
+
+  async function inspectVerticalModel() {
+    if (!selectedOsmBuilding) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const floorData =
+        await getBuildingFloors(
+          selectedOsmBuilding.building_id
+        );
+
+      if (
+        floorData.length === 0
+      ) {
+        throw new Error(
+          "No vertical model is available for this building."
+        );
+      }
+
+      setFloors(floorData);
+      setUnits([]);
+
+      setFocusedBuildingId(
+        selectedOsmBuilding.building_id
+      );
+
+      setVerticalBuildingId(
+        selectedOsmBuilding.building_id
+      );
+
+      setViewMode("3d");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to load vertical model"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function closeVerticalModel() {
+    setVerticalBuildingId(null);
+
+    setFloors([]);
+    setUnits([]);
+  }
+
+  // =========================================================
   // PARCEL SELECTION
   // =========================================================
 
@@ -202,6 +394,10 @@ function App() {
     try {
       setLoading(true);
       setError(null);
+
+      setSelectedOsmBuilding(null);
+      setFocusedBuildingId(null);
+      setVerticalBuildingId(null);
 
       setSelection({
         parcel,
@@ -234,7 +430,7 @@ function App() {
   }
 
   // =========================================================
-  // BUILDING SELECTION
+  // DETAILED BUILDING SELECTION
   // =========================================================
 
   async function selectBuilding(
@@ -243,6 +439,10 @@ function App() {
     try {
       setLoading(true);
       setError(null);
+
+      setSelectedOsmBuilding(null);
+      setFocusedBuildingId(null);
+      setVerticalBuildingId(null);
 
       setSelection(
         (current) => ({
@@ -357,7 +557,9 @@ function App() {
           Spatial application unavailable
         </h1>
 
-        <p>{error}</p>
+        <p>
+          {error}
+        </p>
       </main>
     );
   }
@@ -414,7 +616,9 @@ function App() {
                   ? "view-button active"
                   : "view-button"
               }
-              onClick={open2D}
+              onClick={
+                open2D
+              }
             >
               2D Map
             </button>
@@ -426,7 +630,9 @@ function App() {
                   ? "view-button active"
                   : "view-button"
               }
-              onClick={open3D}
+              onClick={
+                open3D
+              }
             >
               3D Neighborhood
             </button>
@@ -443,22 +649,47 @@ function App() {
       <section className="workspace">
         <div className="viewer">
           <MapViewer
-            viewMode={viewMode}
-            parcels={parcels}
-            buildings={buildings}
-            floors={floors}
-            units={units}
+            viewMode={
+              viewMode
+            }
+            parcels={
+              parcels
+            }
+            buildings={
+              buildings
+            }
+            floors={
+              floors
+            }
+            units={
+              units
+            }
+            focusedBuildingId={
+              focusedBuildingId
+            }
+            verticalBuildingId={
+              verticalBuildingId
+            }
             neighborhoodBuildings={
               neighborhoodBuildings
             }
-            roads={roads}
-            parks={parks}
-            water={water}
+            roads={
+              roads
+            }
+            parks={
+              parks
+            }
+            water={
+              water
+            }
             onParcelSelect={
               selectParcel
             }
             onBuildingSelect={
               selectBuilding
+            }
+            onNeighborhoodBuildingSelect={
+              selectNeighborhoodBuilding
             }
           />
 
@@ -475,7 +706,7 @@ function App() {
               </h2>
 
               <p>
-                Neighborhood and vertical
+                BKC neighborhood and vertical
                 property hierarchy
               </p>
             </div>
@@ -555,19 +786,338 @@ function App() {
             </section>
           )}
 
-          {!selection.parcel && (
-            <div className="empty-state">
-              <p>
-                Explore the real neighborhood
-                or select the detailed parcel.
-              </p>
+          {/* =================================================
+              BUILDING FINDER
+              ================================================= */}
 
-              <small>
-                Detailed vertical property:
-                P001
-              </small>
+          <section className="building-finder">
+            <div className="section-heading">
+              <span>
+                Find Building
+              </span>
+
+              <strong>
+                {
+                  searchableBuildings.length
+                }
+              </strong>
             </div>
+
+            <input
+              type="search"
+              className="building-search-input"
+              value={
+                buildingSearch
+              }
+              placeholder="Search BKC buildings..."
+              onChange={(event) =>
+                setBuildingSearch(
+                  event.target.value
+                )
+              }
+            />
+
+            <div className="building-search-results">
+              {buildingSearchResults.length ===
+                0 && (
+                <div className="building-search-empty">
+                  No named building found.
+                </div>
+              )}
+
+              {buildingSearchResults.map(
+                (feature) => {
+                  const building =
+                    feature.properties;
+
+                  const selected =
+                    selectedOsmBuilding
+                      ?.building_id ===
+                    building.building_id;
+
+                  return (
+                    <button
+                      key={
+                        building.building_id
+                      }
+                      type="button"
+                      className={
+                        selected
+                          ? "building-search-result selected"
+                          : "building-search-result"
+                      }
+                      onClick={() =>
+                        focusBuilding(
+                          building
+                        )
+                      }
+                    >
+                      <div>
+                        <strong>
+                          {building.name ??
+                            building.building_id}
+                        </strong>
+
+                        <small>
+                          {building.building_type ??
+                            "building"}
+
+                          {building.height_m !==
+                            null &&
+                            building.height_m !==
+                              undefined
+                            ? ` · ${building.height_m} m`
+                            : ""}
+
+                          {building.levels !==
+                            null &&
+                            building.levels !==
+                              undefined
+                            ? ` · ${building.levels} levels`
+                            : ""}
+                        </small>
+                      </div>
+
+                      <span>
+                        Focus
+                      </span>
+                    </button>
+                  );
+                }
+              )}
+            </div>
+          </section>
+
+          {/* =================================================
+              SELECTED OSM BUILDING
+              ================================================= */}
+
+          {selectedOsmBuilding && (
+            <section className="entity-card osm-building-card">
+              <span className="entity-type osm-building-type">
+                REAL OSM BUILDING
+              </span>
+
+              <h3>
+                {selectedOsmBuilding.name ??
+                  selectedOsmBuilding.building_id}
+              </h3>
+
+              <dl>
+                <dt>
+                  OSM ID
+                </dt>
+
+                <dd>
+                  {
+                    selectedOsmBuilding.building_id
+                  }
+                </dd>
+
+                <dt>
+                  Name
+                </dt>
+
+                <dd>
+                  {selectedOsmBuilding.name ??
+                    "Not mapped"}
+                </dd>
+
+                <dt>
+                  Type
+                </dt>
+
+                <dd>
+                  {selectedOsmBuilding.building_type ??
+                    "building"}
+                </dd>
+
+                <dt>
+                  Height
+                </dt>
+
+                <dd>
+                  {selectedOsmBuilding.height_m !==
+                  null
+                    ? `${selectedOsmBuilding.height_m} m`
+                    : "Unknown"}
+                </dd>
+
+                <dt>
+                  Levels
+                </dt>
+
+                <dd>
+                  {selectedOsmBuilding.levels ??
+                    "Unknown"}
+                </dd>
+
+                <dt>
+                  Source
+                </dt>
+
+                <dd>
+                  {
+                    selectedOsmBuilding.source_name
+                  }
+                </dd>
+
+                <dt>
+                  Data class
+                </dt>
+
+                <dd>
+                  Real-world context
+                </dd>
+              </dl>
+
+              {selectedOsmBuilding.building_id ===
+                RAHEJA_TOWER_ID &&
+                verticalBuildingId !==
+                  RAHEJA_TOWER_ID && (
+                  <button
+                    type="button"
+                    className="inspect-vertical-button"
+                    onClick={() =>
+                      void inspectVerticalModel()
+                    }
+                  >
+                    Inspect 15-Floor Model
+                  </button>
+                )}
+
+              {verticalBuildingId ===
+                selectedOsmBuilding.building_id && (
+                <div className="vertical-model-panel">
+                  <div className="vertical-model-header">
+                    <div>
+                      <span className="vertical-model-label">
+                        VERTICAL MODEL
+                      </span>
+
+                      <strong>
+                        {floors.length} Floors
+                      </strong>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="close-vertical-button"
+                      onClick={
+                        closeVerticalModel
+                      }
+                    >
+                      Close
+                    </button>
+                  </div>
+
+                  <div className="vertical-model-range">
+                    <span>
+                      Base
+
+                      <strong>
+                        0 m
+                      </strong>
+                    </span>
+
+                    <span>
+                      Top
+
+                      <strong>
+                        {selectedOsmBuilding.height_m ??
+                          "?"}{" "}
+                        m
+                      </strong>
+                    </span>
+                  </div>
+
+                  <div className="vertical-floor-list">
+                    {[...floors]
+                      .sort(
+                        (a, b) =>
+                          b.floor_number -
+                          a.floor_number
+                      )
+                      .map(
+                        (floor) => (
+                          <div
+                            key={
+                              floor.floor_id
+                            }
+                            className="vertical-floor-row"
+                          >
+                            <div>
+                              <strong>
+                                Floor{" "}
+                                {
+                                  floor.floor_number
+                                }
+                              </strong>
+
+                              <small>
+                                {
+                                  floor.floor_id
+                                }
+                              </small>
+                            </div>
+
+                            <span>
+                              {
+                                floor.z_min_m
+                              }
+                              –
+                              {
+                                floor.z_max_m
+                              }{" "}
+                              m
+                            </span>
+                          </div>
+                        )
+                      )}
+                  </div>
+
+                  <div className="vertical-provenance">
+                    Floor geometry is
+                    prototype-derived from the
+                    real OSM footprint, 45 m
+                    height and 15 mapped levels.
+                  </div>
+                </div>
+              )}
+
+              {selectedOsmBuilding.height_m ===
+                null && (
+                <div className="osm-height-warning">
+                  OSM does not provide a
+                  height or level count for
+                  this building. Its displayed
+                  3D height is a visualization
+                  fallback and is not stored as
+                  authoritative property data.
+                </div>
+              )}
+            </section>
           )}
+
+          {!selection.parcel &&
+            !selectedOsmBuilding && (
+              <div className="empty-state">
+                <p>
+                  Search for a named BKC
+                  building or select one
+                  directly from the map.
+                </p>
+
+                <small>
+                  Search "Raheja" for the
+                  flagship vertical model.
+                </small>
+              </div>
+            )}
+
+          {/* =================================================
+              LEGACY DETAILED PROPERTY
+              ================================================= */}
 
           {selection.parcel && (
             <div className="explorer">
@@ -584,7 +1134,9 @@ function App() {
                 </h3>
 
                 <dl>
-                  <dt>Name</dt>
+                  <dt>
+                    Name
+                  </dt>
 
                   <dd>
                     {selection.parcel
