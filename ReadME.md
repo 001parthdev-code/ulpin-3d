@@ -939,8 +939,9 @@ spatial property identity
 
 # License
 
-To be determined.
+The source code in this repository is licensed under the
+[Apache License 2.0](LICENSE).
 
-OpenStreetMap data is subject to its applicable license and attribution requirements.
+OpenStreetMap data is © OpenStreetMap contributors and is available under the Open Database License (ODbL). OpenStreetMap-derived data remains subject to the applicable OpenStreetMap licensing and attribution requirements.
 
-Other third-party datasets retain their respective licenses and attribution requirements.
+Other third-party datasets and dependencies retain their respective licenses.
