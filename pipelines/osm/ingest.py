@@ -1,5 +1,5 @@
 from __future__ import annotations
-
+import os
 import json
 import math
 import sys
@@ -18,9 +18,16 @@ from shapely.validation import make_valid
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
 
-DATABASE_URL = (
-    "postgresql://ulpin:ulpin_dev_password@localhost:5432/ulpin"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL"
 )
+
+if not DATABASE_URL:
+    raise RuntimeError(
+        "DATABASE_URL is not configured. "
+        "Set it in the environment before "
+        "running OSM ingestion."
+    )
 
 # ============================================================
 # BKC — MUMBAI

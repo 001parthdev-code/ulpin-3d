@@ -4,9 +4,9 @@ services:
     container_name: ulpin-postgis
 
     environment:
-      POSTGRES_DB: ulpin
-      POSTGRES_USER: ulpin
-      POSTGRES_PASSWORD: ulpin_dev_password
+    POSTGRES_DB: ${POSTGRES_DB:-ulpin}
+    POSTGRES_USER: ${POSTGRES_USER:-ulpin}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ulpin_dev_password}
 
     ports:
       - "5432:5432"
@@ -17,10 +17,14 @@ services:
       - ./database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
 
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ulpin -d ulpin"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
+  test:
+    [
+      "CMD-SHELL",
+      "pg_isready -U ${POSTGRES_USER:-ulpin} -d ${POSTGRES_DB:-ulpin}"
+    ]
+  interval: 5s
+  timeout: 5s
+  retries: 10
 
     restart: unless-stopped
 
