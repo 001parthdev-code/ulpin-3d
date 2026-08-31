@@ -1,4 +1,5 @@
 # 3D ULPIN
+[![CI](https://github.com/001parthdev-code/ulpin-3d/actions/workflows/ci.yml/badge.svg)](https://github.com/001parthdev-code/ulpin-3d/actions/workflows/ci.yml)
 
 **A prototype spatial system for representing and resolving vertical property space.**
 
