@@ -4294,3 +4294,1307 @@ Inspect them from 360°
 ```
 
 The next development session should begin from this stable point and add direct interaction with the 3D spatial entities.
+
+# 112. Renderer Architecture Change
+
+After the initial CesiumJS vertical-property viewer was implemented, the renderer architecture was reconsidered.
+
+Cesium successfully proved that the spatial hierarchy could be represented in 3D, but it introduced more runtime and rendering complexity than was necessary for the neighborhood-scale prototype.
+
+The project therefore moved toward a unified MapLibre-based visualization architecture.
+
+The application now uses:
+
+```text
+MapLibre GL JS
+      │
+      ├── 2D map rendering
+      │
+      └── 3D fill-extrusion rendering
+```
+
+rather than maintaining separate MapLibre and Cesium rendering systems.
+
+This reduced:
+
+```text
+renderer lifecycle complexity
+duplicate viewer state
+frontend integration complexity
+runtime asset handling
+switching overhead
+```
+
+while preserving the underlying spatial model.
+
+This change reinforced an important architectural principle:
+
+> The spatial domain model must remain independent of the renderer.
+
+The PostGIS representation of parcels, buildings, floors, and units did not need to change when the visualization technology changed.
+
+---
+
+# 113. Real Neighborhood Integration
+
+After proving the vertical-property hierarchy using the deterministic synthetic property, development moved toward real urban context.
+
+The objective became:
+
+```text
+Synthetic vertical property model
+            +
+Real neighborhood geometry
+            ↓
+Neighborhood-scale prototype
+```
+
+OpenStreetMap was selected as the initial real-world geospatial source.
+
+The ingestion pipeline was introduced under:
+
+```text
+pipelines/osm/
+```
+
+The pipeline retrieves and normalizes neighborhood entities such as:
+
+```text
+buildings
+roads
+parks
+water features
+```
+
+before inserting them into PostGIS.
+
+The important architectural rule remains:
+
+```text
+OpenStreetMap
+      ↓
+Ingestion pipeline
+      ↓
+PostGIS
+      ↓
+FastAPI
+      ↓
+Frontend
+```
+
+The frontend does not directly own or independently fetch the authoritative application copy of the neighborhood dataset.
+
+---
+
+# 114. Neighborhood Database Expansion
+
+The database was expanded beyond the original property hierarchy.
+
+The spatial model now contains neighborhood context including:
+
+```text
+buildings
+roads
+parks
+water_features
+```
+
+Real OSM buildings coexist with the earlier prototype property model.
+
+This allows the database to represent both:
+
+```text
+URBAN CONTEXT
+│
+├── roads
+├── parks
+├── water
+└── real buildings
+```
+
+and:
+
+```text
+VERTICAL PROPERTY MODEL
+│
+├── buildings
+├── floors
+└── units
+```
+
+within the same spatial backend.
+
+---
+
+# 115. Neighborhood API
+
+A neighborhood router was introduced in FastAPI.
+
+The frontend can retrieve real urban context through domain-oriented API endpoints rather than embedding the OSM dataset directly.
+
+The neighborhood API exposes information including:
+
+```text
+building footprints
+road geometries
+parks
+water
+summary counts
+```
+
+The frontend therefore receives real neighborhood geometry through the same architectural path as the property model:
+
+```text
+PostGIS
+   ↓
+FastAPI
+   ↓
+GeoJSON
+   ↓
+React
+   ↓
+MapLibre
+```
+
+---
+
+# 116. Real Neighborhood Selection
+
+Several areas were considered during real-data experimentation.
+
+The final prototype geography was moved to:
+
+```text
+Bandra Kurla Complex
+Mumbai, India
+```
+
+BKC was selected because it provides a stronger neighborhood-scale demonstration environment:
+
+```text
+organized urban structure
+commercial buildings
+recognizable named properties
+road network
+green/public areas
+useful building metadata
+```
+
+The prototype geography is therefore no longer centered on the original synthetic development location.
+
+---
+
+# 117. BKC Prototype Area
+
+The MapLibre application now initializes around BKC.
+
+The neighborhood is represented using real OSM-derived geometry stored in PostGIS.
+
+The application can display:
+
+```text
+BKC
+│
+├── buildings
+├── roads
+├── parks
+└── water/public spatial context
+```
+
+The frontend uses a deliberately simplified visual style rather than a third-party raster basemap.
+
+This keeps the application's own spatial information visually dominant.
+
+---
+
+# 118. Real Building Metadata
+
+Real OSM building records retain information such as:
+
+```text
+building_id
+OSM identifier
+name
+building type
+height
+levels
+footprint
+source type
+source name
+```
+
+Not every OSM building contains complete vertical metadata.
+
+For buildings without mapped heights, the renderer may use a visualization-only fallback height.
+
+That fallback must not be confused with stored authoritative or real-world property information.
+
+The distinction is:
+
+```text
+database value
+      ≠
+rendering fallback
+```
+
+This preserves the provenance model established earlier in development.
+
+---
+
+# 119. Building Search and Focus
+
+As the neighborhood dataset became larger, manually locating a particular building became an unnecessary usability problem.
+
+A building finder was therefore introduced.
+
+The Property Explorer can search named BKC buildings.
+
+Conceptually:
+
+```text
+Search BKC buildings...
+        ↓
+Raheja Tower
+        ↓
+Focus
+```
+
+When a building is selected through search:
+
+```text
+building identity
+      ↓
+matching GeoJSON feature
+      ↓
+actual polygon bounds
+      ↓
+MapLibre fitBounds()
+      ↓
+camera focuses building
+```
+
+The camera focus is therefore derived from the selected building geometry rather than requiring hardcoded coordinates for every property.
+
+---
+
+# 120. Generic Building Selection
+
+Building selection is now connected to semantic OSM metadata.
+
+Selecting a real building updates the Property Explorer with information such as:
+
+```text
+OSM ID
+name
+type
+height
+levels
+source
+data classification
+```
+
+The selected building is also visually highlighted.
+
+The interaction therefore preserves:
+
+```text
+Rendered building
+       ↓
+building_id
+       ↓
+domain entity
+       ↓
+metadata
+```
+
+The map is an interface to the spatial entity rather than an independent representation of it.
+
+---
+
+# 121. Flagship Real Building
+
+A real BKC building was selected as the flagship vertical-property demonstration:
+
+```text
+Raheja Tower
+```
+
+The corresponding OSM record is:
+
+```text
+Building ID:
+OSM-WAY-353159496
+
+OSM ID:
+353159496
+
+Building type:
+commercial
+
+Mapped height:
+45 m
+
+Mapped levels:
+15
+
+Source:
+OpenStreetMap
+```
+
+The building footprint is represented by real OSM polygon geometry.
+
+This replaced the synthetic B001 cuboid as the primary demonstration object.
+
+---
+
+# 122. Raheja Tower Provenance Boundary
+
+The prototype deliberately separates what is known from OpenStreetMap from what is generated by the prototype.
+
+For Raheja Tower:
+
+```text
+REAL / OSM
+
+building identity
+name
+building type
+footprint
+height
+mapped level count
+```
+
+The prototype does not claim that OSM provides:
+
+```text
+official cadastral parcel
+official ULPIN
+authoritative floor polygons
+authoritative unit boundaries
+ownership
+legal title
+```
+
+This boundary is explicitly preserved throughout the model.
+
+---
+
+# 123. Derived Vertical Model
+
+Raheja Tower has:
+
+```text
+height = 45 m
+levels = 15
+```
+
+The prototype derives a deterministic floor stack from those values.
+
+For the demonstration:
+
+```text
+45 / 15 = 3 m per floor
+```
+
+The resulting model is:
+
+```text
+F01   [ 0,  3)
+F02   [ 3,  6)
+F03   [ 6,  9)
+...
+F13   [36, 39)
+F14   [39, 42)
+F15   [42, 45)
+```
+
+The floor identities are:
+
+```text
+RAHEJA-F01
+RAHEJA-F02
+...
+RAHEJA-F15
+```
+
+These floor entities use the real building footprint but are classified as derived rather than authoritative.
+
+---
+
+# 124. Derived Floor Provenance
+
+Each generated Raheja floor retains provenance information.
+
+Conceptually:
+
+```text
+source_type:
+derived
+
+derivation_method:
+Derived from OpenStreetMap building footprint,
+height, and building:levels
+
+verification_status:
+unverified
+```
+
+This ensures the system can distinguish:
+
+```text
+real source geometry
+        ↓
+derived vertical entity
+```
+
+without presenting the derived entity as an official cadastral record.
+
+---
+
+# 125. Vertical Interval Semantics
+
+A deterministic vertical containment convention was established.
+
+Floor intervals use:
+
+```text
+[z_min, z_max)
+```
+
+which means:
+
+```text
+z_min <= z < z_max
+```
+
+For example:
+
+```text
+Floor 07 = [18, 21)
+Floor 08 = [21, 24)
+Floor 09 = [24, 27)
+```
+
+Therefore:
+
+```text
+20.999999 → Floor 07
+21.000000 → Floor 08
+
+23.999999 → Floor 08
+24.000000 → Floor 09
+```
+
+Using half-open intervals prevents adjacent vertical entities from simultaneously claiming the same boundary coordinate.
+
+---
+
+# 126. Vertical Model Inspection
+
+The frontend can recognize the flagship building and expose its vertical model.
+
+The interaction is:
+
+```text
+Search Raheja Tower
+        ↓
+Focus building
+        ↓
+Inspect vertical model
+        ↓
+Load derived floors
+        ↓
+Switch to 3D
+        ↓
+Render floor volumes
+```
+
+The Property Explorer displays the floor stack and the corresponding vertical ranges.
+
+The model therefore remains inspectable both:
+
+```text
+visually
+```
+
+and:
+
+```text
+semantically
+```
+
+---
+
+# 127. Current 3D Rendering Strategy
+
+The current renderer uses MapLibre fill extrusions.
+
+Real neighborhood buildings are represented as building extrusions.
+
+Floor entities are also represented as fill extrusions using:
+
+```text
+floor footprint
+z_min_m
+z_max_m
+```
+
+Conceptually:
+
+```text
+2D polygon
+    ×
+vertical interval
+    ↓
+rendered floor volume
+```
+
+This follows the same representation strategy originally established for the database model.
+
+The renderer does not require stored 3D meshes for the current prototype.
+
+---
+
+# 128. Renderer Independence Proven
+
+The project initially used CesiumJS for 3D property inspection and later moved the prototype toward MapLibre-based extrusion.
+
+The underlying property representation survived this transition.
+
+This demonstrates an important system property:
+
+```text
+Spatial model
+     │
+     ├── Cesium representation
+     │
+     └── MapLibre representation
+```
+
+The renderer can change without redefining:
+
+```text
+building identity
+floor identity
+geometry
+vertical range
+provenance
+relationships
+```
+
+This validates the earlier principle:
+
+> The spatial model is the system. The visualization is a view of that system.
+
+---
+
+# 129. Spatial Engine Phase
+
+After the real BKC visualization and Raheja vertical model were operational, development moved below the visualization layer.
+
+The objective was to prove that the system could answer a deterministic spatial question without depending on the map:
+
+> Given a physical longitude, latitude, and vertical coordinate, which property entity contains that point?
+
+This introduced the first explicit spatial-engine primitive:
+
+```text
+resolve(lon, lat, z)
+```
+
+---
+
+# 130. Spatial Resolve API
+
+A spatial router was added to FastAPI.
+
+The primary endpoint is:
+
+```text
+GET /spatial/resolve
+```
+
+It accepts:
+
+```text
+lon
+lat
+z
+```
+
+For example:
+
+```text
+lon = 72.86295
+lat = 19.06090
+z   = 22.5
+```
+
+The endpoint combines horizontal PostGIS containment with explicit vertical interval containment.
+
+---
+
+# 131. Horizontal Resolution
+
+Horizontal containment is resolved against the building footprint using PostGIS.
+
+Conceptually:
+
+```text
+input longitude / latitude
+          ↓
+PostGIS point
+          ↓
+building footprint containment
+          ↓
+containing building
+```
+
+The prototype uses the stored building polygon rather than a renderer-derived screen location.
+
+This means spatial resolution remains available even if the frontend is removed.
+
+---
+
+# 132. Vertical Resolution
+
+After the containing building is identified, floor resolution applies the vertical interval rule:
+
+```text
+floor.z_min_m <= z
+AND
+z < floor.z_max_m
+```
+
+For:
+
+```text
+z = 22.5
+```
+
+Raheja Tower resolves to:
+
+```text
+RAHEJA-F08
+```
+
+because:
+
+```text
+21 <= 22.5 < 24
+```
+
+---
+
+# 133. First Successful 3D Coordinate Resolution
+
+The first verified real-world query used:
+
+```text
+longitude = 72.86295
+latitude  = 19.06090
+z         = 22.5 m
+```
+
+The system returned:
+
+```text
+Building:
+Raheja Tower
+
+Building ID:
+OSM-WAY-353159496
+
+Floor:
+RAHEJA-F08
+
+Floor number:
+8
+
+Vertical range:
+21–24 m
+```
+
+The response also preserved provenance:
+
+```text
+Building:
+source_type = real
+source_name = OpenStreetMap
+
+Floor:
+source_type = derived
+verification_status = unverified
+```
+
+This established the first complete mapping:
+
+```text
+physical 3D coordinate
+        ↓
+spatial property identity
+```
+
+---
+
+# 134. Spatial Resolution Hierarchy
+
+The spatial resolver returns not only the matched entities but also their hierarchy.
+
+For the first successful query:
+
+```text
+OSM-WAY-353159496
+        ↓
+RAHEJA-F08
+```
+
+Conceptually:
+
+```json
+{
+  "hierarchy": [
+    "OSM-WAY-353159496",
+    "RAHEJA-F08"
+  ]
+}
+```
+
+This allows a caller to understand both:
+
+```text
+what vertical entity contains the point
+```
+
+and:
+
+```text
+which larger spatial entity contains that entity
+```
+
+---
+
+# 135. Spatial Engine Independence
+
+The spatial resolver does not depend on MapLibre.
+
+Its dependency chain is:
+
+```text
+HTTP request
+     ↓
+FastAPI
+     ↓
+Spatial query logic
+     ↓
+PostGIS
+     ↓
+building + floor identity
+```
+
+Therefore the prototype now contains useful spatial behavior independently from its visualization layer.
+
+This is an important transition.
+
+The project is no longer only capable of:
+
+```text
+showing vertical space
+```
+
+It is also capable of:
+
+```text
+querying vertical space
+```
+
+---
+
+# 136. Spatial Engine Tests
+
+Automated tests were added for the spatial resolver.
+
+The tests cover behavior including:
+
+```text
+Raheja Tower resolution
+floor resolution
+vertical boundaries
+ground-floor resolution
+top-floor resolution
+provenance preservation
+hierarchy output
+outside-building behavior
+invalid coordinate validation
+```
+
+The complete spatial test suite passed at the prototype checkpoint.
+
+---
+
+# 137. Boundary Correctness Tests
+
+The spatial tests explicitly validate the half-open interval semantics.
+
+Verified cases include:
+
+```text
+20.999999 → RAHEJA-F07
+
+21.000000 → RAHEJA-F08
+
+23.999999 → RAHEJA-F08
+
+24.000000 → RAHEJA-F09
+```
+
+These tests are important because vertical boundary behavior must be deterministic.
+
+A physical Z coordinate should not resolve to two adjacent floors simultaneously.
+
+---
+
+# 138. Provenance Through Spatial Resolution
+
+The resolver preserves the distinction between source and derived data.
+
+For example:
+
+```text
+Raheja Tower
+
+source_type:
+real
+
+source_name:
+OpenStreetMap
+```
+
+while:
+
+```text
+RAHEJA-F08
+
+source_type:
+derived
+
+verification_status:
+unverified
+```
+
+This demonstrates that provenance is not only database metadata.
+
+It survives through:
+
+```text
+PostGIS
+   ↓
+spatial query
+   ↓
+FastAPI
+   ↓
+API response
+```
+
+and can therefore be consumed by any future interface.
+
+---
+
+# 139. Prototype Technical Claim
+
+The prototype can now make a narrower and more defensible technical claim than the original project description.
+
+It demonstrates that vertically stacked property space can be represented as explicit spatial entities and resolved from a physical 3D coordinate.
+
+The core primitive is:
+
+```text
+(X, Y, Z)
+    ↓
+spatial identity
+```
+
+The current proof object is:
+
+```text
+BKC
+ ↓
+Raheja Tower
+ ↓
+15 derived floors
+ ↓
+3D coordinate
+ ↓
+containing building + floor
+```
+
+---
+
+# 140. Current Prototype Boundary
+
+The current prototype intentionally stops before implementing a general-purpose spatial topology engine.
+
+Capabilities such as:
+
+```text
+parent(entity)
+children(entity)
+above(entity)
+below(entity)
+adjacent(entity)
+intersects(volume)
+```
+
+are natural extensions of the model but are not required to prove the current prototype thesis.
+
+Likewise, the prototype does not require:
+
+```text
+city-scale rendering
+authoritative ownership data
+legal cadastral integration
+production authorization
+full 3D topology
+real floor plans
+real unit boundaries
+```
+
+Those remain outside the current scope.
+
+---
+
+# 141. Current Real vs Derived vs Synthetic Model
+
+At the final prototype checkpoint, the data categories are approximately:
+
+```text
+REAL
+
+BKC urban context
+roads
+parks
+water
+OSM building footprints
+Raheja Tower identity
+Raheja Tower footprint
+Raheja Tower mapped height
+Raheja Tower mapped levels
+
+
+DERIVED
+
+Raheja floor identities
+Raheja floor vertical ranges
+Raheja floor volumes
+
+
+SYNTHETIC
+
+Original P001 / B001 development model
+prototype unit geometries
+prototype unit metadata
+
+
+AUTHORITATIVE
+
+No government cadastral dataset is currently
+claimed as authoritative by the prototype.
+```
+
+This classification should remain explicit in all demonstrations and documentation.
+
+---
+
+# 142. Final Prototype Architecture
+
+The current system architecture is:
+
+```text
+                         USER
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │ React / TypeScript│
+                 └─────────┬─────────┘
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │     MapLibre      │
+                 │                   │
+                 │ 2D neighborhood   │
+                 │ 3D extrusions     │
+                 │ building search   │
+                 │ vertical inspect  │
+                 └─────────┬─────────┘
+                           │
+                           │ HTTP / GeoJSON
+                           ▼
+                 ┌───────────────────┐
+                 │      FastAPI      │
+                 │                   │
+                 │ property API      │
+                 │ neighborhood API  │
+                 │ spatial API       │
+                 └─────────┬─────────┘
+                           │
+                           ▼
+                 ┌───────────────────┐
+                 │      PostGIS      │
+                 │                   │
+                 │ spatial entities  │
+                 │ geometry          │
+                 │ vertical ranges   │
+                 │ provenance        │
+                 └─────────┬─────────┘
+                           │
+             ┌─────────────┴─────────────┐
+             │                           │
+             ▼                           ▼
+      OpenStreetMap              Prototype-derived
+       real context              vertical entities
+```
+
+---
+
+# 143. Final Demonstration Flow
+
+The final prototype demonstration can follow:
+
+```text
+1. Start PostGIS
+
+2. Start FastAPI
+
+3. Start React/Vite
+
+4. Open the BKC neighborhood
+
+5. Search:
+   Raheja Tower
+
+6. Focus the real building
+
+7. Inspect:
+   real OSM metadata
+   45 m height
+   15 mapped levels
+
+8. Open the vertical model
+
+9. Inspect the 15 derived floor entities
+
+10. Query:
+
+    resolve(
+        72.86295,
+        19.06090,
+        22.5
+    )
+
+11. Receive:
+
+    Raheja Tower
+        ↓
+    RAHEJA-F08
+        ↓
+    [21 m, 24 m)
+```
+
+This connects the visual demonstration directly to the underlying spatial primitive.
+
+---
+
+# 144. Prototype Completion State
+
+The final prototype now contains:
+
+```text
+INFRASTRUCTURE
+
+Git / GitHub                         ✓
+Docker                               ✓
+PostgreSQL                           ✓
+PostGIS                              ✓
+
+
+SPATIAL DOMAIN
+
+Parcel                               ✓
+Building                             ✓
+Floor                                ✓
+Unit schema                          ✓
+Vertical ranges                      ✓
+Provenance                           ✓
+
+
+REAL URBAN CONTEXT
+
+BKC                                  ✓
+OSM buildings                        ✓
+Roads                                ✓
+Parks                                ✓
+Water                                ✓
+
+
+BACKEND
+
+FastAPI                              ✓
+Property APIs                        ✓
+Neighborhood APIs                    ✓
+Spatial resolver                     ✓
+GeoJSON                              ✓
+
+
+FRONTEND
+
+React                                ✓
+TypeScript                           ✓
+MapLibre                             ✓
+2D neighborhood                      ✓
+3D building extrusion                ✓
+Building search                      ✓
+Building focus                       ✓
+Property metadata                    ✓
+Vertical inspection                  ✓
+
+
+FLAGSHIP PROPERTY
+
+Raheja Tower                         ✓
+Real footprint                       ✓
+Real OSM metadata                    ✓
+15-floor derived model               ✓
+Explicit provenance                  ✓
+
+
+SPATIAL ENGINE
+
+resolve(lon, lat, z)                 ✓
+Building resolution                  ✓
+Floor resolution                     ✓
+Hierarchy response                   ✓
+Boundary semantics                   ✓
+Automated tests                      ✓
+```
+
+---
+
+# 145. What Is Intentionally Not Complete
+
+The following are not required for the current prototype:
+
+```text
+authoritative cadastral integration
+official ULPIN generation
+real ownership records
+real Raheja floor plans
+real Raheja unit boundaries
+production authentication
+production authorization
+city-scale vector tiling
+general 3D topology
+adjacency graph
+accessibility graph
+above/below query API
+production deployment
+```
+
+These are future-system concerns rather than missing requirements for the current proof.
+
+---
+
+# 146. Final Engineering Principle
+
+The project began with the idea of building a 3D property-mapping interface.
+
+The implementation established a more important principle:
+
+> **The visualization is not the spatial model.**
+
+The spatial model exists independently through:
+
+```text
+identity
+geometry
+vertical extent
+relationships
+provenance
+verification
+```
+
+The renderer consumes that model.
+
+The API exposes that model.
+
+The spatial resolver queries that model.
+
+This allows the technology to remain meaningful even if the visualization layer changes again.
+
+---
+
+# 147. Final Prototype Result
+
+The project has progressed through:
+
+```text
+IDEA
+ ↓
+RESEARCH
+ ↓
+SPATIAL DOMAIN MODEL
+ ↓
+POSTGIS
+ ↓
+SYNTHETIC PROPERTY
+ ↓
+SPATIAL VALIDATION
+ ↓
+FASTAPI
+ ↓
+MAPLIBRE
+ ↓
+3D PROPERTY REPRESENTATION
+ ↓
+REAL BKC INGESTION
+ ↓
+REAL BUILDING SELECTION
+ ↓
+RAHEJA VERTICAL MODEL
+ ↓
+SPATIAL RESOLUTION
+ ↓
+AUTOMATED CORRECTNESS TESTS
+```
+
+The final result is no longer merely:
+
+```text
+a 3D map
+```
+
+It is a neighborhood-scale proof that physical vertical space can be represented as addressable, provenance-aware spatial entities and queried using real-world coordinates.
+
+---
+
+# 148. Prototype Freeze
+
+The current implementation is considered sufficient for the prototype objective.
+
+Further feature development should not occur merely to increase visible functionality.
+
+Before final delivery, the remaining work should focus on:
+
+```text
+documentation
+test verification
+frontend production build
+repository cleanup
+reproducibility
+demo preparation
+```
+
+The prototype should remain frozen unless a defect prevents the documented demonstration flow from working.
+
+The final operating principle is:
+
+> **A small spatial primitive that works correctly is more valuable than a large collection of unfinished spatial features.**

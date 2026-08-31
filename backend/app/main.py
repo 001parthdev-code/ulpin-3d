@@ -4,6 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 # pyrefly: ignore [missing-import]
 from fastapi.responses import JSONResponse
+from backend.app.routers import buildings
+from backend.app.routers import neighborhood
+from backend.app.routers import spatial
 
 from .routers import buildings, floors, neighborhood, parcels, units
 
@@ -39,3 +42,4 @@ app.include_router(buildings.router)
 app.include_router(floors.router)
 app.include_router(units.router)
 app.include_router(neighborhood.router)
+app.include_router(spatial.router)
